@@ -1,6 +1,6 @@
 """
-    HWRF_MoM.py
-        -- HWRF and MoM integration
+HWRF_MoM.py
+    -- HWRF and MoM integration
 """
 
 import csv
@@ -148,55 +148,55 @@ def update_HWRF_MoM(adate):
                     row.append(x)
                 row_count = row_count + 1
             else:
-                if float(row[1]) / float(weightage.GFMS_Area_wt) > float(
-                    weightage.GFMS_Area_max_pt
+                if float(row[1]) / float(weightage.GFMS_Area_wt[0]) > float(
+                    weightage.GFMS_Area_max_pt[0]
                 ):
-                    GFMS_area_score = str(float(weightage.GFMS_Area_max_pt))
+                    GFMS_area_score = str(float(weightage.GFMS_Area_max_pt[0]))
                 else:
                     GFMS_area_score = str(
-                        float(weightage.GFMS_Area_Min_pt)
+                        float(weightage.GFMS_Area_Min_pt[0])
                         * float(row[1])
-                        / float(weightage.GFMS_Area_wt)
+                        / float(weightage.GFMS_Area_wt[0])
                     )
-                if float(row[2]) / float(weightage.GFMS_percArea_wt) > float(
-                    weightage.GFMS_percArea_Maxpt
+                if float(row[2]) / float(weightage.GFMS_percArea_wt[0]) > float(
+                    weightage.GFMS_percArea_Maxpt[0]
                 ):
-                    GFMS_perc_area_score = str(float(weightage.GFMS_percArea_Maxpt))
+                    GFMS_perc_area_score = str(float(weightage.GFMS_percArea_Maxpt[0]))
                 else:
                     GFMS_perc_area_score = str(
-                        float(weightage.GFMS_percArea_Minpt)
+                        float(weightage.GFMS_percArea_Minpt[0])
                         * float(row[2])
-                        / float(weightage.GFMS_percArea_wt)
+                        / float(weightage.GFMS_percArea_wt[0])
                     )
-                if float(row[3]) / float(weightage.GFMS_Meandepth_wt) > float(
-                    weightage.GFMS_Meandepth_Maxpt
+                if float(row[3]) / float(weightage.GFMS_Meandepth_wt[0]) > float(
+                    weightage.GFMS_Meandepth_Maxpt[0]
                 ):
-                    MeanD_Score = str(float(weightage.GFMS_Meandepth_Maxpt))
+                    MeanD_Score = str(float(weightage.GFMS_Meandepth_Maxpt[0]))
                 else:
                     MeanD_Score = str(
-                        float(weightage.GFMS_Meandepth_Minpt)
+                        float(weightage.GFMS_Meandepth_Minpt[0])
                         * float(row[3])
-                        / float(weightage.GFMS_Meandepth_wt)
+                        / float(weightage.GFMS_Meandepth_wt[0])
                     )
-                if float(row[4]) / float(weightage.GFMS_Maxdepth_wt) > float(
-                    weightage.GFMS_Maxdepth_Maxpt
+                if float(row[4]) / float(weightage.GFMS_Maxdepth_wt[0]) > float(
+                    weightage.GFMS_Maxdepth_Maxpt[0]
                 ):
-                    MaxD_Score = str(float(weightage.GFMS_Maxdepth_Maxpt))
+                    MaxD_Score = str(float(weightage.GFMS_Maxdepth_Maxpt[0]))
                 else:
                     MaxD_Score = str(
-                        float(weightage.GFMS_Maxdepth_Minpt)
+                        float(weightage.GFMS_Maxdepth_Minpt[0])
                         * float(row[4])
-                        / float(weightage.GFMS_Maxdepth_wt)
+                        / float(weightage.GFMS_Maxdepth_wt[0])
                     )
-                if float(row[5]) / float(weightage.GFMS_Duration_wt) > float(
-                    weightage.GFMS_Duration_Maxpt
+                if float(row[5]) / float(weightage.GFMS_Duration_wt[0]) > float(
+                    weightage.GFMS_Duration_Maxpt[0]
                 ):
-                    Duration_Score = str(float(weightage.GFMS_Duration_Maxpt))
+                    Duration_Score = str(float(weightage.GFMS_Duration_Maxpt[0]))
                 else:
                     Duration_Score = str(
-                        float(weightage.GFMS_Duration_Minpt)
+                        float(weightage.GFMS_Duration_Minpt[0])
                         * float(row[5])
-                        / float(weightage.GFMS_Duration_wt)
+                        / float(weightage.GFMS_Duration_wt[0])
                     )
                 Sum_Score = str(
                     float(GFMS_area_score)
@@ -273,10 +273,12 @@ def update_HWRF_MoM(adate):
                 errorfile.writerow([row[0], row[1], row[14], error])
                 error_flag = True
             else:
-                Alert_Score = str(round(float(row[12]) * float(weightage.Alert_score)))
-                TwoYScore = str(float(row[9]) / float(weightage.EPS_Twoyear_wt))
-                FiveYScore = str(float(row[10]) / float(weightage.EPS_Fiveyear_wt))
-                TwtyYScore = str(float(row[11]) / float(weightage.EPS_Twtyyear_wt))
+                Alert_Score = str(
+                    round(float(row[12]) * float(weightage.Alert_score[0]))
+                )
+                TwoYScore = str(float(row[9]) / float(weightage.EPS_Twoyear_wt[0]))
+                FiveYScore = str(float(row[10]) / float(weightage.EPS_Fiveyear_wt[0]))
+                TwtyYScore = str(float(row[11]) / float(weightage.EPS_Twtyyear_wt[0]))
                 if (
                     int(row[9]) == 0
                     and int(row[10]) == 0
@@ -409,71 +411,77 @@ def update_HWRF_MoM(adate):
                 elif row == []:
                     continue
                 else:
-                    if float(row[1]) / float(HWRF_weightage.HWRF_Area_wt) > float(
-                        HWRF_weightage.HWRF_Area_max_pt
+                    if float(row[1]) / float(HWRF_weightage.HWRF_Area_wt[0]) > float(
+                        HWRF_weightage.HWRF_Area_max_pt[0]
                     ):
-                        HWRF_area_score = str(float(HWRF_weightage.HWRF_Area_max_pt))
+                        HWRF_area_score = str(float(HWRF_weightage.HWRF_Area_max_pt[0]))
                     else:
                         HWRF_area_score = str(
-                            float(HWRF_weightage.HWRF_Area_Min_pt)
+                            float(HWRF_weightage.HWRF_Area_Min_pt[0])
                             * float(row[1])
-                            / float(HWRF_weightage.HWRF_Area_wt)
+                            / float(HWRF_weightage.HWRF_Area_wt[0])
                         )
-                    if float(row[2]) / float(HWRF_weightage.HWRF_percArea_wt) > float(
-                        HWRF_weightage.HWRF_percArea_Maxpt
-                    ):
+                    if float(row[2]) / float(
+                        HWRF_weightage.HWRF_percArea_wt[0]
+                    ) > float(HWRF_weightage.HWRF_percArea_Maxpt[0]):
                         HWRF_percarea_score = str(
-                            float(HWRF_weightage.HWRF_percArea_Maxpt)
+                            float(HWRF_weightage.HWRF_percArea_Maxpt[0])
                         )
                     else:
                         HWRF_percarea_score = str(
-                            float(HWRF_weightage.HWRF_percArea_Minpt)
+                            float(HWRF_weightage.HWRF_percArea_Minpt[0])
                             * float(row[2])
-                            / float(HWRF_weightage.HWRF_percArea_wt)
+                            / float(HWRF_weightage.HWRF_percArea_wt[0])
                         )
-                    if float(row[3]) >= float(HWRF_weightage.HWRF_MeanRain_minwt):
+                    if float(row[3]) >= float(HWRF_weightage.HWRF_MeanRain_minwt[0]):
                         if (
-                            (float(row[3]) - float(HWRF_weightage.HWRF_MeanRain_minwt))
-                            / float(HWRF_weightage.HWRF_MeanRain_increment)
-                        ) + float(HWRF_weightage.HWRF_MeanRain_Minpt) > float(
-                            HWRF_weightage.HWRF_MeanRain_Maxpt
+                            (
+                                float(row[3])
+                                - float(HWRF_weightage.HWRF_MeanRain_minwt[0])
+                            )
+                            / float(HWRF_weightage.HWRF_MeanRain_increment[0])
+                        ) + float(HWRF_weightage.HWRF_MeanRain_Minpt[0]) > float(
+                            HWRF_weightage.HWRF_MeanRain_Maxpt[0]
                         ):
                             MeanRain_Score = str(
-                                float(HWRF_weightage.HWRF_MeanRain_Maxpt)
+                                float(HWRF_weightage.HWRF_MeanRain_Maxpt[0])
                             )
                         else:
                             MeanRain_Score = str(
                                 (
                                     (
                                         float(row[3])
-                                        - float(HWRF_weightage.HWRF_MeanRain_minwt)
+                                        - float(HWRF_weightage.HWRF_MeanRain_minwt[0])
                                     )
-                                    / float(HWRF_weightage.HWRF_MeanRain_increment)
+                                    / float(HWRF_weightage.HWRF_MeanRain_increment[0])
                                 )
-                                + float(HWRF_weightage.HWRF_MeanRain_Minpt)
+                                + float(HWRF_weightage.HWRF_MeanRain_Minpt[0])
                             )
                     else:
                         MeanRain_Score = "0"
-                    if float(row[4]) >= float(HWRF_weightage.HWRF_MaxRain_minwt):
+                    if float(row[4]) >= float(HWRF_weightage.HWRF_MaxRain_minwt[0]):
                         if (
-                            (float(row[4]) - float(HWRF_weightage.HWRF_MaxRain_minwt))
-                            / float(HWRF_weightage.HWRF_MaxRain_increment)
-                        ) + float(HWRF_weightage.HWRF_MaxRain_Minpt) > float(
-                            HWRF_weightage.HWRF_MaxRain_Maxpt
+                            (
+                                float(row[4])
+                                - float(HWRF_weightage.HWRF_MaxRain_minwt[0])
+                            )
+                            / float(HWRF_weightage.HWRF_MaxRain_increment[0])
+                        ) + float(HWRF_weightage.HWRF_MaxRain_Minpt[0]) > float(
+                            HWRF_weightage.HWRF_MaxRain_Maxpt[0]
                         ):
                             MaxRain_Score = str(
-                                float(HWRF_weightage.HWRF_MaxRain_Maxpt)
+                                float(HWRF_weightage.HWRF_MaxRain_Maxpt[0])
                             )
                         else:
                             MaxRain_Score = str(
                                 (
                                     (
                                         float(row[4])
-                                        - float(HWRF_weightage.HWRF_MaxRain_minwt)
+                                        - float(HWRF_weightage.HWRF_MaxRain_minwt[0])
                                     )
-                                    / float(HWRF_weightage.HWRF_MaxRain_increment)
+                                    / float(HWRF_weightage.HWRF_MaxRain_increment[0])
                                 )
-                                + float(HWRF_weightage.HWRF_MaxRain_Minpt)
+                                + float(HWRF_weightage.HWRF_MaxRain_Minpt[0])
                             )
                     else:
                         MaxRain_Score = "0"
@@ -700,89 +708,89 @@ def update_HWRFMoM_DFO_VIIRS(adate):
                     row.append(x)
                 row_count = row_count + 1
             else:
-                if float(row[4]) / float(weightage.DFO_Area_wt) > float(
-                    weightage.DFO_Area_max_pt
+                if float(row[4]) / float(weightage.DFO_Area_wt[0]) > float(
+                    weightage.DFO_Area_max_pt[0]
                 ):
                     DFO_area_1day_score = str(
-                        float(weightage.DFO_Area_max_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_Area_max_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     DFO_area_1day_score = str(
-                        float(weightage.DFO_Area_Min_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_Area_Min_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[4])
-                        / float(weightage.DFO_Area_wt)
+                        / float(weightage.DFO_Area_wt[0])
                     )
-                if float(row[5]) / float(weightage.DFO_percArea_wt) > float(
-                    weightage.DFO_percArea_Maxpt
+                if float(row[5]) / float(weightage.DFO_percArea_wt[0]) > float(
+                    weightage.DFO_percArea_Maxpt[0]
                 ):
                     DFO_perc_area_1day_score = str(
-                        float(weightage.DFO_percArea_Maxpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_percArea_Maxpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     DFO_perc_area_1day_score = str(
-                        float(weightage.DFO_percArea_Minpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_percArea_Minpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[5])
-                        / float(weightage.DFO_percArea_wt)
+                        / float(weightage.DFO_percArea_wt[0])
                     )
-                if float(row[6]) / float(weightage.DFO_Area_wt) > float(
-                    weightage.DFO_Area_max_pt
+                if float(row[6]) / float(weightage.DFO_Area_wt[0]) > float(
+                    weightage.DFO_Area_max_pt[0]
                 ):
                     DFO_area_2day_score = str(
-                        float(weightage.DFO_Area_max_pt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_Area_max_pt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                     )
                 else:
                     DFO_area_2day_score = str(
-                        float(weightage.DFO_Area_Min_pt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_Area_Min_pt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                         * float(row[6])
-                        / float(weightage.DFO_Area_wt)
+                        / float(weightage.DFO_Area_wt[0])
                     )
-                if float(row[7]) / float(weightage.DFO_percArea_wt) > float(
-                    weightage.DFO_percArea_Maxpt
+                if float(row[7]) / float(weightage.DFO_percArea_wt[0]) > float(
+                    weightage.DFO_percArea_Maxpt[0]
                 ):
                     DFO_perc_area_2day_score = str(
-                        float(weightage.DFO_percArea_Maxpt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_percArea_Maxpt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                     )
                 else:
                     DFO_perc_area_2day_score = str(
-                        float(weightage.DFO_percArea_Minpt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_percArea_Minpt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                         * float(row[7])
-                        / float(weightage.DFO_percArea_wt)
+                        / float(weightage.DFO_percArea_wt[0])
                     )
-                if float(row[8]) / float(weightage.DFO_Area_wt) > float(
-                    weightage.DFO_Area_max_pt
+                if float(row[8]) / float(weightage.DFO_Area_wt[0]) > float(
+                    weightage.DFO_Area_max_pt[0]
                 ):
                     DFO_area_3day_score = str(
-                        float(weightage.DFO_Area_max_pt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_Area_max_pt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                     )
                 else:
                     DFO_area_3day_score = str(
-                        float(weightage.DFO_Area_Min_pt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_Area_Min_pt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                         * float(row[8])
-                        / float(weightage.DFO_Area_wt)
+                        / float(weightage.DFO_Area_wt[0])
                     )
-                if float(row[9]) / float(weightage.DFO_percArea_wt) > float(
-                    weightage.DFO_percArea_Maxpt
+                if float(row[9]) / float(weightage.DFO_percArea_wt[0]) > float(
+                    weightage.DFO_percArea_Maxpt[0]
                 ):
                     DFO_perc_area_3day_score = str(
-                        float(weightage.DFO_percArea_Maxpt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_percArea_Maxpt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                     )
                 else:
                     DFO_perc_area_3day_score = str(
-                        float(weightage.DFO_percArea_Minpt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_percArea_Minpt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                         * float(row[9])
-                        / float(weightage.DFO_percArea_wt)
+                        / float(weightage.DFO_percArea_wt[0])
                     )
 
                 Sum_Score = str(
@@ -932,61 +940,61 @@ def update_HWRFMoM_DFO_VIIRS(adate):
                     row.append(x)
                 row_count = row_count + 1
             else:
-                if float(row[1]) / float(weightage.VIIRS_Area_wt) > float(
-                    weightage.VIIRS_Area_max_pt
+                if float(row[1]) / float(weightage.VIIRS_Area_wt[0]) > float(
+                    weightage.VIIRS_Area_max_pt[0]
                 ):
                     VIIRS_area_1day_score = str(
-                        float(weightage.VIIRS_Area_max_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.VIIRS_Area_max_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     VIIRS_area_1day_score = str(
-                        float(weightage.VIIRS_Area_Min_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.VIIRS_Area_Min_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[1])
-                        / float(weightage.VIIRS_Area_wt)
+                        / float(weightage.VIIRS_Area_wt[0])
                     )
-                if float(row[2]) / float(weightage.VIIRS_percArea_wt) > float(
-                    weightage.VIIRS_percArea_Maxpt
+                if float(row[2]) / float(weightage.VIIRS_percArea_wt[0]) > float(
+                    weightage.VIIRS_percArea_Maxpt[0]
                 ):
                     VIIRS_perc_area_1day_score = str(
-                        float(weightage.VIIRS_percArea_Maxpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.VIIRS_percArea_Maxpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     VIIRS_perc_area_1day_score = str(
-                        float(weightage.VIIRS_percArea_Minpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.VIIRS_percArea_Minpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[2])
-                        / float(weightage.VIIRS_percArea_wt)
+                        / float(weightage.VIIRS_percArea_wt[0])
                     )
-                if float(row[3]) / float(weightage.VIIRS_Area_wt) > float(
-                    weightage.VIIRS_Area_max_pt
+                if float(row[3]) / float(weightage.VIIRS_Area_wt[0]) > float(
+                    weightage.VIIRS_Area_max_pt[0]
                 ):
                     VIIRS_area_5day_score = str(
-                        float(weightage.VIIRS_Area_max_pt)
-                        * float(weightage.five_Day_Multiplier)
+                        float(weightage.VIIRS_Area_max_pt[0])
+                        * float(weightage.five_Day_Multiplier[0])
                     )
                 else:
                     VIIRS_area_5day_score = str(
-                        float(weightage.VIIRS_Area_Min_pt)
-                        * float(weightage.five_Day_Multiplier)
+                        float(weightage.VIIRS_Area_Min_pt[0])
+                        * float(weightage.five_Day_Multiplier[0])
                         * float(row[3])
-                        / float(weightage.VIIRS_Area_wt)
+                        / float(weightage.VIIRS_Area_wt[0])
                     )
-                if float(row[4]) / float(weightage.VIIRS_percArea_wt) > float(
-                    weightage.VIIRS_percArea_Maxpt
+                if float(row[4]) / float(weightage.VIIRS_percArea_wt[0]) > float(
+                    weightage.VIIRS_percArea_Maxpt[0]
                 ):
                     VIIRS_perc_area_5day_score = str(
-                        float(weightage.VIIRS_percArea_Maxpt)
-                        * float(weightage.five_Day_Multiplier)
+                        float(weightage.VIIRS_percArea_Maxpt[0])
+                        * float(weightage.five_Day_Multiplier[0])
                     )
                 else:
                     VIIRS_perc_area_5day_score = str(
-                        float(weightage.VIIRS_percArea_Minpt)
-                        * float(weightage.five_Day_Multiplier)
+                        float(weightage.VIIRS_percArea_Minpt[0])
+                        * float(weightage.five_Day_Multiplier[0])
                         * float(row[4])
-                        / float(weightage.VIIRS_percArea_wt)
+                        / float(weightage.VIIRS_percArea_wt[0])
                     )
                 Sum_Score = str(
                     (
