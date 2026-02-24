@@ -20,8 +20,9 @@ epilog = """
 import argparse
 import logging
 
-# needed to discover "gdal" console commands in the modules that don't use Python gdal bindings (especially for Windows .venv)
-from osgeo import gdal 
+# needed to add gdal tp PATH, so that "gdal" console commands are accessible through os.system or subprocess
+# even in the modules that don't import Python gdal bindings (especially for Windows .venv)
+from osgeo import gdal
 
 from DFO_MoM import batchrun_DFO_MoM
 from DFO_tool import DFO_cron

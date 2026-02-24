@@ -9,15 +9,15 @@ import os
 import shutil
 import sys
 import time
-import settings
 from zipfile import ZipFile
 
 # firt check production.cfg
 if not os.path.exists("production.cfg"):
     shutil.copyfile("sample_production.cfg", "production.cfg")
-    time.sleep(2)
-    # print("please check the production.cfg, run initilize again.")
-    # sys.exit()
+    time.sleep(1)
+
+
+import settings  # import after creating "production.cfg", because variables in settings rely on that file
 
 
 def create_dir(apath):
@@ -33,7 +33,9 @@ print("task: check folder stucture")
 create_dir(settings.WORKING_DIR)
 # task: create the sub folders inside working_dir
 for key in settings.config["processing_dir"]:
-    subfolder = os.path.join(settings.WORKING_DIR, settings.config.get("processing_dir", key))
+    subfolder = os.path.join(
+        settings.WORKING_DIR, settings.config.get("processing_dir", key)
+    )
     create_dir(subfolder)
 
 # create product dir
@@ -42,7 +44,9 @@ create_dir(settings.PRODUCT_DIR)
 product_sub_folders = ["summary", "image", "MoM"]
 product_with_subfolder = ["GFMS", "HWRF", "DFO", "VIIRS"]
 for key in settings.config["products_dir"]:
-    subfolder = os.path.join(settings.PRODUCT_DIR, settings.config.get("products_dir", key))
+    subfolder = os.path.join(
+        settings.PRODUCT_DIR, settings.config.get("products_dir", key)
+    )
     create_dir(subfolder)
     if key.upper() in product_with_subfolder:
         for product_sub in product_sub_folders:
@@ -61,6 +65,9 @@ if not os.path.exists(settings.WATERSHED_SHP):
         zipObj.extractall(settings.WATERSHED_DIR)
 else:
     print("Task: watershed shp is already unzipped")
+
+# the mandatory checks are moved to the end,
+# so that all action are performed before sys.exit() due to a missing token
 
 # check for credentials
 if "?" in user or "?" in passwd:

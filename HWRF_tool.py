@@ -10,7 +10,6 @@ import math
 import os
 import shutil
 import subprocess
-import sys
 import zipfile
 from datetime import datetime, timezone
 
@@ -124,9 +123,14 @@ def HWRF_download(hwrfurl):
             fstr_local = os.path.join(settings.HWRF_PROC_DIR, fstr)
             if not os.path.exists(fstr_local):
                 subprocess.run(
-                    ["wget", f"{hwrfurl.rstrip('/')}/{fstr}", "-P", settings.HWRF_PROC_DIR],
+                    [
+                        "wget",
+                        f"{hwrfurl.rstrip('/')}/{fstr}",
+                        "-P",
+                        settings.HWRF_PROC_DIR,
+                    ],
                     check=True,
-                )
+                )  # Raises CalledProcessError on non-zero exit
             ascii_list.append(fstr)
 
     return ascii_list

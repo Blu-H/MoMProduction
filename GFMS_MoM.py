@@ -66,15 +66,24 @@ def flood_severity(GFMS_Table, GloFas_Table, adate):
         # csv_writer = csv.writer(write_obj)
 
         for row in GFMS_reader:
-            # first row contains headers: ['pfaf_id', 'GFMS_TotalArea_km', 'GFMS_perc_Area', 'GFMS_MeanDepth', 'GFMS_MaxDepth', 'GFMS_Duration']
+            # first row stores the headers, atm they are:
+            # ['pfaf_id', 'GFMS_TotalArea_km', 'GFMS_perc_Area', 'GFMS_MeanDepth', 'GFMS_MaxDepth', 'GFMS_Duration']
             if row_count == 1:
                 # add new headers for scores
                 for x in add_field_GFMS:
                     row.append(x)
                 row_count = row_count + 1
+
             else:
                 # unpack the row values
-                _, GFMS_TotalArea_km, GFMS_perc_Area, GFMS_MeanDepth, GFMS_MaxDepth, GFMS_Duration = row
+                (
+                    _,
+                    GFMS_TotalArea_km,
+                    GFMS_perc_Area,
+                    GFMS_MeanDepth,
+                    GFMS_MaxDepth,
+                    GFMS_Duration,
+                ) = row
 
                 if float(GFMS_TotalArea_km) / float(weightage.GFMS_Area_wt[0]) > float(
                     weightage.GFMS_Area_max_pt[0]
@@ -96,9 +105,9 @@ def flood_severity(GFMS_Table, GloFas_Table, adate):
                         * float(GFMS_perc_Area)
                         / float(weightage.GFMS_percArea_wt[0])
                     )
-                if float(GFMS_MeanDepth) / float(weightage.GFMS_Meandepth_wt[0]) > float(
-                    weightage.GFMS_Meandepth_Maxpt[0]
-                ):
+                if float(GFMS_MeanDepth) / float(
+                    weightage.GFMS_Meandepth_wt[0]
+                ) > float(weightage.GFMS_Meandepth_Maxpt[0]):
                     MeanD_Score = str(float(weightage.GFMS_Meandepth_Maxpt[0]))
                 else:
                     MeanD_Score = str(
@@ -205,7 +214,9 @@ def flood_severity(GFMS_Table, GloFas_Table, adate):
                 errorfile.writerow([row[0], row[1], row[14], error])
                 error_flag = True
             else:
-                Alert_Score = str(round(float(row[12]) * float(weightage.Alert_score[0])))
+                Alert_Score = str(
+                    round(float(row[12]) * float(weightage.Alert_score[0]))
+                )
                 TwoYScore = str(float(row[9]) / float(weightage.EPS_Twoyear_wt[0]))
                 FiveYScore = str(float(row[10]) / float(weightage.EPS_Fiveyear_wt[0]))
                 TwtyYScore = str(float(row[11]) / float(weightage.EPS_Twtyyear_wt[0]))
@@ -346,8 +357,12 @@ def flood_severity(GFMS_Table, GloFas_Table, adate):
         ["Sum_Score_x", "Sum_Score_y"]
     ].fillna(value=0)
 
-    Final_Attributes.loc[Final_Attributes["Sum_Score_y"] == 0, "Sum_Score_x"] = Final_Attributes["Sum_Score_x"] * 2
-    Final_Attributes.loc[Final_Attributes["Sum_Score_x"] == 0, "Sum_Score_y"] = Final_Attributes["Sum_Score_y"] * 2
+    Final_Attributes.loc[Final_Attributes["Sum_Score_y"] == 0, "Sum_Score_x"] = (
+        Final_Attributes["Sum_Score_x"] * 2
+    )
+    Final_Attributes.loc[Final_Attributes["Sum_Score_x"] == 0, "Sum_Score_y"] = (
+        Final_Attributes["Sum_Score_y"] * 2
+    )
     Final_Attributes = Final_Attributes.assign(
         Hazard_Score=lambda x: Final_Attributes["Sum_Score_x"]
         + Final_Attributes["Sum_Score_y"]
