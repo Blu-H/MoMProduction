@@ -20,4 +20,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = []
+packages = ["src"]

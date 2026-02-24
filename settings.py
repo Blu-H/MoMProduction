@@ -9,7 +9,7 @@ Settings for MoM Production
 import configparser
 import logging
 import os
-from datetime import date
+from datetime import datetime, timezone
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -19,9 +19,9 @@ config.read(os.path.join(BASE_DIR, "production.cfg"))
 
 # config directory
 # base directory for downloading and processing data
-WORKING_DIR = os.path.expanduser(config.get("general", "WORKING_DIR"))
+WORKING_DIR = os.path.expanduser(config.get("general", "WORKING_DIR").replace("/", os.sep))
 # base directory for the data products
-PRODUCT_DIR = os.path.expanduser(config.get("general", "PRODUCT_DIR"))
+PRODUCT_DIR = os.path.expanduser(config.get("general", "PRODUCT_DIR").replace("/", os.sep))
 
 # config GLOFAS directory
 GLOFAS_PROC_DIR = os.path.join(WORKING_DIR, config.get("processing_dir", "glofas"))
@@ -63,12 +63,12 @@ FINAL_MOM = os.path.join(PRODUCT_DIR, config.get("products_dir", "FINAL"))
 FINAL_MOM_DIR = os.path.join(PRODUCT_DIR, config.get("products_dir", "FINAL"))
 
 # config watershed shp file
-WATERSHED_DIR = os.path.join(BASE_DIR, "watershed_shp")
+WATERSHED_DIR = os.path.join(BASE_DIR, "data", "watershed_shp")
 WATERSHED_SHP = os.path.join(WATERSHED_DIR, "Watershed_pfaf_id.shp")
 
 # setup logging
 # generate a new log for each month
-todays_date = date.today()
+todays_date = datetime.now(timezone.utc)
 logfile = "{year}_{month}.log".format(year=todays_date.year, month=todays_date.month)
 logfile = os.path.join(WORKING_DIR, config.get("processing_dir", "logs"), logfile)
 try:

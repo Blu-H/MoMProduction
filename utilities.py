@@ -6,7 +6,7 @@ routines shared across the modules
 
 import glob
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import geopandas
 import pandas as pd
@@ -30,7 +30,7 @@ def watersheds_gdb_reader():
     return watersheds
 
 
-def read_data(datafile):
+def read_data(datafile) -> pd.DataFrame:
     df = pd.read_csv(datafile)
     # df = pd.DataFrame(df)
     return df
@@ -39,8 +39,9 @@ def read_data(datafile):
 def from_today(adate):
     # conver adate to date object
     # adate may come in as YYYYMMDD
-    da = datetime.strptime(adate[:8], "%Y%m%d").date()
-    today = date.today()
+    da = datetime.strptime(adate[:8], "%Y%m%d")
+    da = da.replace(tzinfo=timezone.utc)
+    today = datetime.now(timezone.utc)
     delta = da - today
 
     return delta.days
@@ -94,15 +95,14 @@ def hwrf_today(adate="", ahour=""):
     """check if hwrf has date for today"""
     tstr, hstr = adate, ahour
     if tstr == "":
-        today = date.today()
-        tstr = today.strftime("%Y%m%d")
+        today = datetime.now(timezone.utc)
+        tstr = datetime.strftime(today, "%Y%m%d")
 
     if hstr == "":
         hstr = "00"
 
     hosturl = settings.config.get("hwrf", "HOST")
-    turl = os.path.join(hosturl, "hwrf.{}".format(tstr), hstr)
-    # print(turl)
+    turl = f"{hosturl.rstrip('/')}/hwrf.{tstr}/{hstr}"
     has_data = url_exits(turl)
     return has_data
 
@@ -113,7 +113,7 @@ def get_current_processing_datehour(time_delay=6):
     -- return YYYYMMDDHH (hour in 00, 06, 12, 18)
     """
     # get current time
-    ct = datetime.now()
+    ct = datetime.now(timezone.utc)
     dt = ct - timedelta(hours=time_delay)
     # integer division
     ahour = (dt.hour // 6) * 6
@@ -130,11 +130,11 @@ def main():
 
     # test from today function
     print("==> from tdoay")
-    adate = date.today().strftime("%Y%m%d")
+    adate = datetime.now(timezone.utc).strftime("%Y%m%d")
     ddays = from_today(adate)
     print("{} => {}".format(adate, ddays))
 
-    yesterday = date.today() - timedelta(days=2)
+    yesterday = datetime.now(timezone.utc) - timedelta(days=2)
     adate = yesterday.strftime("%Y%m%d")
     ddays = from_today(adate)
     print("{} => {}".format(adate, ddays))
@@ -166,7 +166,7 @@ def main():
     print(lastest_items)
 
     print("==> url exist")
-    today = date.today()
+    today = datetime.now(timezone.utc)
     tstr = today.strftime("%Y%m%d")
     aurl = f"https://ftpprd.ncep.noaa.gov/data/nccf/com/hwrf/prod/hwrf.{tstr}/00/"
     print("HWRF today: ")
@@ -184,7 +184,7 @@ def main():
     print("hwrf has the data today: ", hwrf_today(adate="20221111", ahour="06"))
 
     print("==> get current processing datehour")
-    print("current time: ", datetime.now())
+    print("current time: ", datetime.now(timezone.utc))
     print("current processing datehour: ", get_current_processing_datehour())
     print(
         "current processing datehour with 3 hour delay: ",

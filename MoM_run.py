@@ -20,12 +20,14 @@ epilog = """
 import argparse
 import logging
 
+# needed to discover "gdal" console commands in the modules that don't use Python gdal bindings (especially for Windows .venv)
+from osgeo import gdal 
+
 from DFO_MoM import batchrun_DFO_MoM
 from DFO_tool import DFO_cron
 from GFMS_tool import GFMS_cron, GFMS_fixdate
 from HWRF_MoM import batchrun_HWRF_MoM
 from HWRF_tool import HWRF_cron
-from settings import *
 from VIIRS_MoM import batchrun_VIIRS_MoM
 from VIIRS_tool import VIIRS_cron
 
