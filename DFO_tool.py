@@ -116,22 +116,29 @@ def dfo_download(subfolder):
     # os-agnostic process
     cmd = [
         "wget",
-        "-e", "robots=off",
+        "-e",
+        "robots=off",
         "-r",
         "--no-parent",
-        "-l", "1",
-        "-R", ".html,.tmp",
+        "-l",
+        "1",
+        "-R",
+        ".html,.tmp",
         "-nH",
         "--cut-dirs=8",
         dataurl,
-        "--header", f"Authorization: Bearer {dfokey}",
-        "-P", settings.DFO_PROC_DIR,
+        "--header",
+        f"Authorization: Bearer {dfokey}",
+        "-P",
+        settings.DFO_PROC_DIR,
     ]
-    process = subprocess.run(cmd, check=True)
 
-    if not (process.returncode == 0 or process.returncode == 8):
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
         # something wrong with downloading
-        logging.warning("download failed: " + dataurl)
+        logging.warning(f"Download failed: {dataurl}, error: {e.returncode}")
+        print("Exit code:", e.returncode)
         sys.exit()
 
     return
@@ -355,7 +362,7 @@ def DFO_process(folder, adate):
     # zip the original folder
     if settings.config["storage"].getboolean("dfo_save"):
         zipped = os.path.join(settings.DFO_PROC_DIR, "DFO_{}.zip".format(adate))
-        
+
         # os-agnostic process
         with zipfile.ZipFile(zipped, "w", compression=zipfile.ZIP_STORED) as z:
             for root, _, files in os.walk("."):

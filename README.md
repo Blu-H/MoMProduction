@@ -221,6 +221,7 @@ git reset --hard origin/main
 Linux uv:
 curl -LsSf https://astral.sh/uv/install.sh | sh (install uv)
 source $HOME/.local/bin/env
+cd MoMProduction
 sudo apt install gdal-bin=3.8.4* libgdal-dev=3.8.4*
 (in the folder)
 source .venv/bin/activate
@@ -238,6 +239,7 @@ conda install -c conda-forge libgdal-hdf4 (will require several manual confirmat
 cd MoMProduction
 conda env create -f environment.yml
 conda activate myenv
+conda install -c conda-forge libgdal-hdf4 (will require several manual confirmations)
 ______
 conda deactivate
 conda remove -n condaenv --all
@@ -270,6 +272,7 @@ sort -t '<' -k2 -n network_trace.txt | tail
 ====================Install on Windows====================
 Powershell:
 - install uv: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+- cd MoMProduction
 - uv venv --python 3.12
 - .venv\Scripts\activate
 

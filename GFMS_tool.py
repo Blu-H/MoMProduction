@@ -293,7 +293,7 @@ def GFMS_download(bin_file):
             r.raise_for_status()
 
         except requests.exceptions.RequestException as e:
-            logging.error("Downlaod failed: " + e.response.text)
+            logging.error(f"Downlaod failed: {e.strerror}")
             # sys.exit() - too dramatic
             return
 
