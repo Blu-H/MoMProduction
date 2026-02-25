@@ -204,3 +204,87 @@ data
 ├── Resilience_Index.csv
 └── VIIRS_Weightage.csv
 ```
+
+New installation notes
+TODO: move to separate shell scripts
+
+====================Install on Linux====================
+sudo apt update && sudo apt upgrade -y
+sudo apt install python3.12 python3.12-venv python3.12-dev
+sudo apt install curl
+
+git clone --branch <branch-name> --single-branch --depth 1 <repo-url>.git
+git fetch origin
+git reset --hard origin/<e.g.dependencies-management-with-uv>
+
+curl -LsSf https://astral.sh/uv/install.sh | sh (install uv)
+source $HOME/.local/bin/env
+sudo apt install gdal-bin=3.8.4* libgdal-dev=3.8.4*
+(in the folder)
+source .venv/bin/activate
+uv pip install "gdal==3.8.4"
+
+python initialize.py
+
+Linux conda:
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+conda config --show channels
+conda install -c conda-forge libgdal-hdf4
+
+conda create -n condaenv python=3.12
+conda activate condaenv
+conda env update -n condaenv -f environment.yml
+______
+conda deactivate
+conda remove -n condaenv --all
+
+(Profiling on linux): 
+pip install py-spy
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile.json --format speedscope -- python MoM_run.py -j GFMS 2> resources.txt
+du -sh MoM (to check downloaded folder size)
+Copy to Windows desktop: (for WSL debugging)
+cp profile.json /mnt/c/Users/katri/Desktop/
+cp resources.txt /mnt/c/Users/katri/Desktop/
+
+Log disk usage before starting the code:
+while true; do du -sb . >> disk_log.txt; sleep 1; done
+Then: Ctrl+C
+Find peak and minimum memory (e.g. before running the code): 
+sort -n disk_log.txt | tail -1
+sort -n disk_log.txt | head -1
+
+Log network calls:
+sudo apt install strace
+strace -tt -T -f -e trace=network -p <PID> -o network_trace.txt
+sort -t '<' -k2 -n network_trace.txt | tail
+
+
+====================Install on Windows====================
+Powershell:
+- install uv: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+- uv venv --python 3.12
+- .venv\Scripts\activate
+
+- (optional) $env:SSL_CERT_FILE="$PWD\.venv\Lib\site-packages\certifi\cacert.pem"
+- (optional) $env:CURL_CA_BUNDLE=$env:SSL_CERT_FILE
+- (optional) $env:REQUESTS_CA_BUNDLE=$env:SSL_CERT_FILE
+
+- uv pip install ./installers/gdal-3.11.4-cp312-cp312-win_amd64.whl
+- uv pip install ./installers/pyproj-3.7.2-cp312-cp312-win_amd64.whl
+- $env:PROJ_LIB = "$PWD\.venv\Lib\site-packages\pyproj\proj_dir\share\proj"
+- uv pip install .
+- python initialize.py
+
+(Profiling on Windows): 
+uv add py-spy
+Add this to the start of MoM_run:
+import os
+import time
+print("PID:", os.getpid())
+time.sleep(3)
+
+Then launch "python MoM_run.py -j GFMS", ad run this from Admin Powershell:
+py-spy record 50 --subprocesses -o profile.json --format speedscope --pid <PID>

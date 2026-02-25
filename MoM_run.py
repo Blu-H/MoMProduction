@@ -19,10 +19,18 @@ epilog = """
 
 import argparse
 import logging
+import os
+import sys
 
 # needed to add gdal tp PATH, so that "gdal" console commands are accessible through os.system or subprocess
 # even in the modules that don't import Python gdal bindings (especially for Windows .venv)
 from osgeo import gdal
+
+# append "wget" path for Windows
+if os.name == "nt":
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    installers_path = os.path.join(current_dir, "installers")
+    os.environ["PATH"] = installers_path + os.pathsep + os.environ["PATH"]
 
 from DFO_MoM import batchrun_DFO_MoM
 from DFO_tool import DFO_cron
@@ -31,6 +39,11 @@ from HWRF_MoM import batchrun_HWRF_MoM
 from HWRF_tool import HWRF_cron
 from VIIRS_MoM import batchrun_VIIRS_MoM
 from VIIRS_tool import VIIRS_cron
+
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+installers_path = os.path.join(current_dir, "installers")
+sys.path.insert(0, installers_path)
 
 
 def _getParser():
