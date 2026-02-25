@@ -213,10 +213,12 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install python3.12 python3.12-venv python3.12-dev
 sudo apt install curl
 
-git clone --branch <branch-name> --single-branch --depth 1 <repo-url>.git
+cd ~/
+git clone --branch main --single-branch --depth 1 https://github.com/Blu-H/MoMProduction.git
 git fetch origin
-git reset --hard origin/<e.g.dependencies-management-with-uv>
+git reset --hard origin/main
 
+Linux uv:
 curl -LsSf https://astral.sh/uv/install.sh | sh (install uv)
 source $HOME/.local/bin/env
 sudo apt install gdal-bin=3.8.4* libgdal-dev=3.8.4*
@@ -224,26 +226,29 @@ sudo apt install gdal-bin=3.8.4* libgdal-dev=3.8.4*
 source .venv/bin/activate
 uv pip install "gdal==3.8.4"
 
-python initialize.py
-
 Linux conda:
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh (will require several manual confirmations)
+source ~/.bashrc (to avoid restarting the shell)
 conda config --add channels conda-forge
 conda config --set channel_priority strict
 conda config --show channels
-conda install -c conda-forge libgdal-hdf4
+conda install -c conda-forge libgdal-hdf4 (will require several manual confirmations)
 
-conda create -n condaenv python=3.12
-conda activate condaenv
-conda env update -n condaenv -f environment.yml
+cd MoMProduction
+conda env create -f environment.yml
+conda activate myenv
 ______
 conda deactivate
 conda remove -n condaenv --all
 
 (Profiling on linux): 
 pip install py-spy
-/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile.json --format speedscope -- python MoM_run.py -j GFMS 2> resources.txt
+
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_DFO.json --format speedscope -- python MoM_run.py -j DFO 2> resources_DFO.txt
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_GFMS.json --format speedscope -- python MoM_run.py -j GFMS 2> resources_GFMS.txt
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_VIIRS.json --format speedscope -- python MoM_run.py -j VIIRS 2> resources_VIIRS.txt
+
 du -sh MoM (to check downloaded folder size)
 Copy to Windows desktop: (for WSL debugging)
 cp profile.json /mnt/c/Users/katri/Desktop/
