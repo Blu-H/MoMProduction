@@ -1,8 +1,8 @@
 """
-    DFO_MoM.py
-        -- update Mom with DFO
-        -- Read Final_Attributes_yyyymmddhhHWRFUpdated.csv as MOM File and DFO_yyyymmdd.csv as DFO File. 
-        -- Write the output Final_Attributes_yyyymmddhhMOM+DFOUpdated.csv and Attributes_clean_yyyymmddhhMOM+DFOUpdated.csv file. 
+DFO_MoM.py
+    -- update Mom with DFO
+    -- Read Final_Attributes_yyyymmddhhHWRFUpdated.csv as MOM File and DFO_yyyymmdd.csv as DFO File.
+    -- Write the output Final_Attributes_yyyymmddhhMOM+DFOUpdated.csv and Attributes_clean_yyyymmddhhMOM+DFOUpdated.csv file.
 """
 
 import csv
@@ -101,89 +101,89 @@ def update_DFO_MoM(adate):
                     row.append(x)
                 row_count = row_count + 1
             else:
-                if float(row[4]) / float(weightage.DFO_Area_wt) > float(
-                    weightage.DFO_Area_max_pt
+                if float(row[4]) / float(weightage.DFO_Area_wt[0]) > float(
+                    weightage.DFO_Area_max_pt[0]
                 ):
                     DFO_area_1day_score = str(
-                        float(weightage.DFO_Area_max_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_Area_max_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     DFO_area_1day_score = str(
-                        float(weightage.DFO_Area_Min_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_Area_Min_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[4])
-                        / float(weightage.DFO_Area_wt)
+                        / float(weightage.DFO_Area_wt[0])
                     )
-                if float(row[5]) / float(weightage.DFO_percArea_wt) > float(
-                    weightage.DFO_percArea_Maxpt
+                if float(row[5]) / float(weightage.DFO_percArea_wt[0]) > float(
+                    weightage.DFO_percArea_Maxpt[0]
                 ):
                     DFO_perc_area_1day_score = str(
-                        float(weightage.DFO_percArea_Maxpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_percArea_Maxpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     DFO_perc_area_1day_score = str(
-                        float(weightage.DFO_percArea_Minpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_percArea_Minpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[5])
-                        / float(weightage.DFO_percArea_wt)
+                        / float(weightage.DFO_percArea_wt[0])
                     )
-                if float(row[6]) / float(weightage.DFO_Area_wt) > float(
-                    weightage.DFO_Area_max_pt
+                if float(row[6]) / float(weightage.DFO_Area_wt[0]) > float(
+                    weightage.DFO_Area_max_pt[0]
                 ):
                     DFO_area_2day_score = str(
-                        float(weightage.DFO_Area_max_pt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_Area_max_pt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                     )
                 else:
                     DFO_area_2day_score = str(
-                        float(weightage.DFO_Area_Min_pt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_Area_Min_pt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                         * float(row[6])
-                        / float(weightage.DFO_Area_wt)
+                        / float(weightage.DFO_Area_wt[0])
                     )
-                if float(row[7]) / float(weightage.DFO_percArea_wt) > float(
-                    weightage.DFO_percArea_Maxpt
+                if float(row[7]) / float(weightage.DFO_percArea_wt[0]) > float(
+                    weightage.DFO_percArea_Maxpt[0]
                 ):
                     DFO_perc_area_2day_score = str(
-                        float(weightage.DFO_percArea_Maxpt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_percArea_Maxpt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                     )
                 else:
                     DFO_perc_area_2day_score = str(
-                        float(weightage.DFO_percArea_Minpt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_percArea_Minpt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                         * float(row[7])
-                        / float(weightage.DFO_percArea_wt)
+                        / float(weightage.DFO_percArea_wt[0])
                     )
-                if float(row[8]) / float(weightage.DFO_Area_wt) > float(
-                    weightage.DFO_Area_max_pt
+                if float(row[8]) / float(weightage.DFO_Area_wt[0]) > float(
+                    weightage.DFO_Area_max_pt[0]
                 ):
                     DFO_area_3day_score = str(
-                        float(weightage.DFO_Area_max_pt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_Area_max_pt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                     )
                 else:
                     DFO_area_3day_score = str(
-                        float(weightage.DFO_Area_Min_pt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_Area_Min_pt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                         * float(row[8])
-                        / float(weightage.DFO_Area_wt)
+                        / float(weightage.DFO_Area_wt[0])
                     )
-                if float(row[9]) / float(weightage.DFO_percArea_wt) > float(
-                    weightage.DFO_percArea_Maxpt
+                if float(row[9]) / float(weightage.DFO_percArea_wt[0]) > float(
+                    weightage.DFO_percArea_Maxpt[0]
                 ):
                     DFO_perc_area_3day_score = str(
-                        float(weightage.DFO_percArea_Maxpt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_percArea_Maxpt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                     )
                 else:
                     DFO_perc_area_3day_score = str(
-                        float(weightage.DFO_percArea_Minpt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_percArea_Minpt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                         * float(row[9])
-                        / float(weightage.DFO_percArea_wt)
+                        / float(weightage.DFO_percArea_wt[0])
                     )
 
                 Sum_Score = str(

@@ -8,7 +8,6 @@ Two main function:
     * DFO_cron_fix: rerun cron-job for a given date
 """
 
-
 import csv
 import json
 import logging
@@ -16,7 +15,8 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+import zipfile
 
 import geopandas
 import numpy as np
@@ -25,9 +25,10 @@ import rasterio
 import requests
 from bs4 import BeautifulSoup
 from rasterio.mask import mask
+from osgeo import gdal
 
 from DFO_MoM import update_DFO_MoM
-from settings import *
+import settings
 from utilities import from_today, watersheds_gdb_reader
 
 # for command line mode, no need for cron-job
@@ -52,7 +53,7 @@ def get_real_date(year, day_num):
 def check_status(adate):
     """check if a give date is processed"""
 
-    processed_list = os.listdir(DFO_SUM_DIR)
+    processed_list = os.listdir(settings.DFO_SUM_DIR)
     processed = any(adate in x for x in processed_list)
 
     return processed
@@ -60,9 +61,9 @@ def check_status(adate):
 
 def get_hosturl():
     """get the host url"""
-    baseurl = config.get("dfo", "HOST")
-    cur_year = date.today().year
-    hosturl = os.path.join(baseurl, str(cur_year))
+    baseurl = settings.config.get("dfo", "HOST")
+    cur_year = datetime.now(timezone.utc).year
+    hosturl = f"{baseurl.rstrip('/')}/{str(cur_year)}"
 
     return hosturl
 
@@ -78,7 +79,7 @@ def generate_procesing_list():
     cur_year = hosturl[-4:]
     datelist = {}
     # get the today in str
-    today_str = date.today().strftime("%Y%m%d")
+    today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
     for link in soup.find_all("a"):
         day_num = link.string
         if not day_num.isdigit():
@@ -100,7 +101,7 @@ def dfo_download(subfolder):
     """download a subfolder"""
 
     # check if there is unfinished download
-    d_dir = os.path.join(DFO_PROC_DIR, subfolder)
+    d_dir = os.path.join(settings.DFO_PROC_DIR, subfolder)
     if os.path.exists(d_dir):
         # is file cases
         if os.path.isfile(d_dir):
@@ -109,15 +110,35 @@ def dfo_download(subfolder):
             # remove the subfolder
             shutil.rmtree(d_dir)
 
-    dfokey = config.get("dfo", "TOKEN")
-    dataurl = os.path.join(get_hosturl(), subfolder)
-    wgetcmd = 'wget -e robots=off -r --no-parent -R .html,.tmp -nH -l1 --cut-dirs=8 {dataurl} --header "Authorization: Bearer {key}" -P {downloadfolder}'
-    wgetcmd = wgetcmd.format(dataurl=dataurl, key=dfokey, downloadfolder=DFO_PROC_DIR)
-    # print(wgetcmd)
-    exitcode = subprocess.call(wgetcmd, shell=True)
-    if not (exitcode == 0 or exitcode ==8):
+    dfokey = settings.config.get("dfo", "TOKEN")
+    dataurl = f"{get_hosturl().rstrip('/')}/{subfolder}"
+
+    # os-agnostic process
+    cmd = [
+        "wget",
+        "-e",
+        "robots=off",
+        "-r",
+        "--no-parent",
+        "-l",
+        "1",
+        "-R",
+        ".html,.tmp",
+        "-nH",
+        "--cut-dirs=8",
+        dataurl,
+        "--header",
+        f"Authorization: Bearer {dfokey}",
+        "-P",
+        settings.DFO_PROC_DIR,
+    ]
+
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
         # something wrong with downloading
-        logging.warning("download failed: " + dataurl)
+        logging.warning(f"Download failed: {dataurl}, error: {e.returncode}")
+        print("Exit code:", e.returncode)
         sys.exit()
 
     return
@@ -219,10 +240,11 @@ def DFO_process(folder, adate):
         Flood_1-Day_250m.vrt
     """
 
-    hdffolder = os.path.join(DFO_PROC_DIR, folder)
+    hdffolder = os.path.join(settings.DFO_PROC_DIR, folder)
     if os.path.isfile(hdffolder):
         logging.warning("Not downloaded properly: " + folder)
         return
+    os.makedirs(hdffolder, exist_ok=True)
 
     # switch to working directory
     os.chdir(hdffolder)
@@ -235,11 +257,11 @@ def DFO_process(folder, adate):
     ]
     # new layer name mapping
     floodsubdataset = {
-            "Flood 1-Day 250m":"Flood_1Day_250m",
-            "Flood 1-Day CS 250m":"FloodCS_1Day_250m",
-            "Flood 2-Day 250m":"Flood_2Day_250m",
-            "Flood 3-Day 250m":"Flood_3Day_250m",
-            }
+        "Flood 1-Day 250m": "Flood_1Day_250m",
+        "Flood 1-Day CS 250m": "FloodCS_1Day_250m",
+        "Flood 2-Day 250m": "Flood_2Day_250m",
+        "Flood 3-Day 250m": "Flood_3Day_250m",
+    }
     # create sub folder if necessary
     for flood in floodlayer:
         subfolder = flood.replace(" ", "_")
@@ -275,12 +297,14 @@ def DFO_process(folder, adate):
     for flood in floodlayer:
         subfolder = flood.replace(" ", "_")
         subdataset = floodsubdataset[flood]
+        tiff_list = []
         # geotiff convert
         for HDF in hdffiles:
             nameprefix = "_".join(HDF.split(".")[1:3])
             inputlayer = f'HDF4_EOS:EOS_GRID:"{HDF}":Grid_Water_Composite:{subdataset}'
             tiff = nameprefix + "_" + subfolder
             outputtiff = os.path.join(subfolder, tiff + ".tiff")
+            tiff_list.append(outputtiff)
             if not os.path.exists(outputtiff):
                 # gdal cmd
                 gdalcmd = (
@@ -289,11 +313,12 @@ def DFO_process(folder, adate):
                 # convert geotiff
                 os.system(gdalcmd)
         # build vrt
-        gdalcmd = f"gdalbuildvrt {subfolder}.vrt {subfolder}/*.tiff"
+        # gdalcmd = f"gdalbuildvrt {subfolder}.vrt {subfolder}/*.tiff"
         # print(gdalcmd)
-        os.system(gdalcmd)
+        # os.system(gdalcmd)
 
         vrt = f"{subfolder}.vrt"
+        gdal.BuildVRT(vrt, tiff_list)
         vrt_list.append(vrt)
         # extract flood data
         dfo_extract_by_watershed(vrt)
@@ -303,7 +328,7 @@ def DFO_process(folder, adate):
             # tiff =  outputfolder + os.path.sep + "DFO_image/DFO_" + datestr + "_" + vrt.replace(".vrt",".tiff")
             # DFO_20210603_Flood_3-Day_250m.tiff
             tiff = "DFO_{datestr}_{layer}.tiff".format(datestr=adate, layer=subfolder)
-            tiff = os.path.join(DFO_IMG_DIR, tiff)
+            tiff = os.path.join(settings.DFO_IMG_DIR, tiff)
             # gdal_translate -co TILED=YES -co COMPRESS=PACKBITS -of GTiff Flood_1-Day_250m.vrt Flood_1-Day_250m.tiff
             # gdaladdo -r average Flood_1-Day_250m.tiff 2 4 8 16 32
             gdalcmd = (
@@ -330,15 +355,26 @@ def DFO_process(folder, adate):
     merged = merged.merge(csv_list[3], on="pfaf_id")
 
     # save output
-    summary_csv = os.path.join(DFO_SUM_DIR, "DFO_{}.csv".format(adate))
+    summary_csv = os.path.join(settings.DFO_SUM_DIR, "DFO_{}.csv".format(adate))
     merged.to_csv(summary_csv)
     logging.info("generated: " + summary_csv)
 
     # zip the original folder
-    if config["storage"].getboolean("dfo_save"):
-        zipped = os.path.join(DFO_PROC_DIR, "DFO_{}.zip".format(adate))
-        zipcmd = f"zip -r -0 {zipped} ./*"
-        os.system(zipcmd)
+    if settings.config["storage"].getboolean("dfo_save"):
+        zipped = os.path.join(settings.DFO_PROC_DIR, "DFO_{}.zip".format(adate))
+
+        # os-agnostic process
+        with zipfile.ZipFile(zipped, "w", compression=zipfile.ZIP_STORED) as z:
+            for root, _, files in os.walk("."):
+
+                for name in files:
+                    path = os.path.join(root, name)
+                    # prevent self-inclusion in a zip folder
+                    if os.path.abspath(path) == os.path.abspath(zipped):
+                        continue
+                    arcname = os.path.relpath(path, ".")
+                    z.write(path, arcname)
+
         logging.info("generated: " + zipped)
 
     # remove all hdf file in the folder
@@ -347,7 +383,7 @@ def DFO_process(folder, adate):
             os.remove(entry)
 
     # switch back script folder
-    os.chdir(BASE_DIR)
+    os.chdir(settings.BASE_DIR)
 
     return
 

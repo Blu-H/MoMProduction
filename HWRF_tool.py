@@ -10,9 +10,8 @@ import math
 import os
 import shutil
 import subprocess
-import sys
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 
 import geopandas as gpd
 import numpy as np
@@ -51,7 +50,7 @@ def check_hours(adate):
     """check if it is too early to process"""
     # adate in YYYYMMDDHH
 
-    ct = datetime.now()
+    ct = datetime.now(timezone.utc)
     da = datetime.strptime(adate, "%Y%m%d%H")
     delta = ct - da
     dhours = delta.total_seconds() / 3600.0
@@ -123,13 +122,15 @@ def HWRF_download(hwrfurl):
         if "rainfall.ascii" in fstr:
             fstr_local = os.path.join(settings.HWRF_PROC_DIR, fstr)
             if not os.path.exists(fstr_local):
-                wgetcmd = (
-                    "wget "
-                    + os.path.join(hwrfurl, fstr)
-                    + " -P "
-                    + settings.HWRF_PROC_DIR
-                )
-                subprocess.call(wgetcmd, shell=True)
+                subprocess.run(
+                    [
+                        "wget",
+                        f"{hwrfurl.rstrip('/')}/{fstr}",
+                        "-P",
+                        settings.HWRF_PROC_DIR,
+                    ],
+                    check=True,
+                )  # Raises CalledProcessError on non-zero exit
             ascii_list.append(fstr)
 
     return ascii_list

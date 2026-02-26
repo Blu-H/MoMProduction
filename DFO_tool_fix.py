@@ -16,7 +16,8 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+import zipfile
 
 import geopandas
 import numpy as np
@@ -27,7 +28,7 @@ from bs4 import BeautifulSoup
 from rasterio.mask import mask
 
 from DFO_MoM import update_DFO_MoM
-from settings import *
+import settings
 from utilities import from_today, watersheds_gdb_reader
 
 # for command line mode, no need for cron-job
@@ -52,7 +53,7 @@ def get_real_date(year, day_num):
 def check_status(adate):
     """check if a give date is processed"""
 
-    processed_list = os.listdir(DFO_SUM_DIR)
+    processed_list = os.listdir(settings.DFO_SUM_DIR)
     processed = any(adate in x for x in processed_list)
 
     return processed
@@ -60,8 +61,8 @@ def check_status(adate):
 
 def get_hosturl():
     """get the host url"""
-    baseurl = config.get("dfo", "HOST")
-    cur_year = date.today().year
+    baseurl = settings.config.get("dfo", "HOST")
+    cur_year = datetime.now(timezone.utc).year
     hosturl = os.path.join(baseurl, str(cur_year))
 
     return hosturl
@@ -78,7 +79,7 @@ def generate_procesing_list():
     cur_year = hosturl[-4:]
     datelist = {}
     # get the today in str
-    today_str = date.today().strftime("%Y%m%d")
+    today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
     for link in soup.find_all("a"):
         day_num = link.string
         if not day_num.isdigit():
@@ -100,7 +101,7 @@ def dfo_download(subfolder):
     """download a subfolder"""
 
     # check if there is unfinished download
-    d_dir = os.path.join(DFO_PROC_DIR, subfolder)
+    d_dir = os.path.join(settings.DFO_PROC_DIR, subfolder)
     if os.path.exists(d_dir):
         # is file cases
         if os.path.isfile(d_dir):
@@ -109,12 +110,25 @@ def dfo_download(subfolder):
             # remove the subfolder
             shutil.rmtree(d_dir)
 
-    dfokey = config.get("dfo", "TOKEN")
+    dfokey = settings.config.get("dfo", "TOKEN")
     dataurl = os.path.join(get_hosturl(), subfolder)
-    wgetcmd = 'wget -e robots=off -r --no-parent -R .html,.tmp -nH -l1 --cut-dirs=8 {dataurl} --header "Authorization: Bearer {key}" -P {downloadfolder}'
-    wgetcmd = wgetcmd.format(dataurl=dataurl, key=dfokey, downloadfolder=DFO_PROC_DIR)
-    # print(wgetcmd)
-    exitcode = subprocess.call(wgetcmd, shell=True)
+    
+    # os-agnostic process
+    cmd = [
+        "wget",
+        "-e", "robots=off",
+        "-r",
+        "--no-parent",
+        "-l", "1",
+        "-R", ".html,.tmp",
+        "-nH",
+        "--cut-dirs=8",
+        dataurl,
+        "--header", f"Authorization: Bearer {dfokey}",
+        "-P", settings.DFO_PROC_DIR,
+    ]
+    exitcode = subprocess.run(cmd, check=True).returncode
+
     if not (exitcode == 0 or exitcode ==8):
         # something wrong with downloading
         logging.warning("download failed: " + dataurl)
@@ -219,7 +233,7 @@ def DFO_process(folder, adate):
         Flood_1-Day_250m.vrt
     """
 
-    hdffolder = os.path.join(DFO_PROC_DIR, folder)
+    hdffolder = os.path.join(settings.DFO_PROC_DIR, folder)
     if os.path.isfile(hdffolder):
         logging.warning("Not downloaded properly: " + folder)
         return
@@ -304,7 +318,7 @@ def DFO_process(folder, adate):
             # tiff =  outputfolder + os.path.sep + "DFO_image/DFO_" + datestr + "_" + vrt.replace(".vrt",".tiff")
             # DFO_20210603_Flood_3-Day_250m.tiff
             tiff = "DFO_{datestr}_{layer}.tiff".format(datestr=adate, layer=subfolder)
-            tiff = os.path.join(DFO_IMG_DIR, tiff)
+            tiff = os.path.join(settings.DFO_IMG_DIR, tiff)
             # gdal_translate -co TILED=YES -co COMPRESS=PACKBITS -of GTiff Flood_1-Day_250m.vrt Flood_1-Day_250m.tiff
             # gdaladdo -r average Flood_1-Day_250m.tiff 2 4 8 16 32
             gdalcmd = (
@@ -331,15 +345,26 @@ def DFO_process(folder, adate):
     merged = merged.merge(csv_list[3], on="pfaf_id")
 
     # save output
-    summary_csv = os.path.join(DFO_SUM_DIR, "DFO_{}.csv".format(adate))
+    summary_csv = os.path.join(settings.DFO_SUM_DIR, "DFO_{}.csv".format(adate))
     merged.to_csv(summary_csv)
     logging.info("generated: " + summary_csv)
 
-    # zip the original foldera
-    if config["storage"].getboolean("dfo_save"):
-        zipped = os.path.join(DFO_PROC_DIR, "DFO_{}.zip".format(adate))
-        zipcmd = f"zip -r -0 {zipped} ./*"
-        os.system(zipcmd)
+    # zip the original folder
+    if settings.config["storage"].getboolean("dfo_save"):
+        zipped = os.path.join(settings.DFO_PROC_DIR, "DFO_{}.zip".format(adate))
+        
+        # os-agnostic process
+        with zipfile.ZipFile(zipped, "w", compression=zipfile.ZIP_STORED) as z:
+            for root, _, files in os.walk("."):
+
+                for name in files:
+                    path = os.path.join(root, name)
+                    # prevent self-inclusion in a zip folder
+                    if os.path.abspath(path) == os.path.abspath(zipped):
+                        continue
+                    arcname = os.path.relpath(path, ".")
+                    z.write(path, arcname)
+
         logging.info("generated: " + zipped)
 
     # remove all hdf file in the folder
@@ -348,7 +373,7 @@ def DFO_process(folder, adate):
             os.remove(entry)
 
     # switch back script folder
-    os.chdir(BASE_DIR)
+    os.chdir(settings.BASE_DIR)
 
     return
 
