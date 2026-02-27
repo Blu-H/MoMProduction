@@ -295,12 +295,14 @@ For Windows (Powershell), prints max RAM and CPU:
 
 New installation notes
 
-Linux:
+Linux (Ubuntu-24.04):
+Create setup.sh file with
 ```
-chmod +x setup.sh
+nano setup.sh
 ```
+and paste the content of setup.sh file from this repo. Ctrl+O (Save), Ctrl+C (Exit). Run the script:
 ```
-./setup.sh
+. setup.sh
 ```
 
 Windows:
