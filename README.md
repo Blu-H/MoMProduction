@@ -207,25 +207,6 @@ data
 
 ## 8. Profiling scripts
 
-Current stats (at [3702461](https://github.com/Blu-H/MoMProduction/commit/3702461b770a68512145dc0ea853a1d794f29849))
-
-```
-________________________________________________
-  Service    CPU    RAM      Time     TempStorage    
-________________________________________________
-  GFMS       101%   0.6 Gb   100 min  0.6 Gb 
-________________________________________________
-  VIIRS      192%   4.2 Gb   8 min    0.7 Gb
-________________________________________________
-  VIIRS(AWS) 111%   ~14.5 Gb 60 min   ~4 Gb
-________________________________________________
-  DFO        58%    1.8 Gb   85 min   10.5 Gb
-________________________________________________
-  HWRF        -      -        -        -
-________________________________________________
-
-```
-
 1. Start logging disk usage before running the script (separate shell, linux)
 ```
 while true; do du -sb MoM >> disk_log_GFMS.txt; sleep 1; done
@@ -313,7 +294,23 @@ For Windows (Powershell), prints max RAM and CPU:
 ======================================================================
 
 New installation notes
-TODO: move to separate shell scripts
+
+Linux:
+```
+chmod +x setup.sh
+```
+```
+./setup.sh
+```
+
+Windows:
+Run from Admin Powershell:
+```
+Set-ExecutionPolicy Bypass -Scope Process -Force
+```
+```
+.\setup.ps1
+```
 
 ====================Install on Linux====================
 sudo apt update && sudo apt upgrade -y
@@ -321,16 +318,15 @@ sudo apt install python3.12 python3.12-venv python3.12-dev
 sudo apt install curl
 
 cd ~/
-git clone --branch main --single-branch --depth 1 https://github.com/Blu-H/MoMProduction.git
+git clone --branch dev --single-branch --depth 1 https://github.com/Blu-H/MoMProduction.git
 git fetch origin
-git reset --hard origin/main
+git reset --hard origin/dev
 
 Linux uv:
 curl -LsSf https://astral.sh/uv/install.sh | sh (install uv)
 source $HOME/.local/bin/env
 cd MoMProduction
 sudo apt install gdal-bin=3.8.4* libgdal-dev=3.8.4*
-(in the folder)
 source .venv/bin/activate
 uv pip install "gdal==3.8.4"
 
