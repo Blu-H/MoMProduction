@@ -78,6 +78,7 @@ def _getParser():
 def run_job(cronjob):
     """run various cron job"""
     logging.info("run " + cronjob)
+    print("Main PID:", os.getpid())
     if cronjob == "GFMS":
         GFMS_cron()
     elif cronjob == "HWRF":

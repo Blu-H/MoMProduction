@@ -205,6 +205,110 @@ data
 └── VIIRS_Weightage.csv
 ```
 
+## 8. Profiling scripts
+
+Current stats (at [3702461](https://github.com/Blu-H/MoMProduction/commit/3702461b770a68512145dc0ea853a1d794f29849))
+_______________________________________________________________________________
+  **Service        CPU, %      RAM, Gb       Time, min       Temp Storage, Gb**    
+_______________________________________________________________________________
+  GFMS           101 %       0.6 Gb         100 min         0.6 Gb 
+_______________________________________________________________________________
+  VIIRS (FTP)    192 %       4.2 Gb         8 min           0.7 Gb
+_______________________________________________________________________________
+  VIIRS (AWS)    111 %       ~14.5 Gb       60 min          ~4 Gb
+_______________________________________________________________________________
+  DFO            58 %        1.8 Gb         85 min          10.5 Gb
+_______________________________________________________________________________
+  HWRF           -           -              -               -
+_______________________________________________________________________________
+
+
+1. Start logging disk usage before running the script (separate shell, linux)
+```
+while true; do du -sb MoM >> disk_log_GFMS.txt; sleep 1; done
+```
+```
+while true; do du -sb MoM >> disk_log_VIIRS.txt; sleep 1; done
+```
+```
+while true; do du -sb MoM >> disk_log_DFO.txt; sleep 1; done
+```
+```
+while true; do du -sb MoM >> disk_log_HWRF.txt; sleep 1; done
+```
+
+2. If parallel processing applied (e.g. in VIIRS), track live RAM usage (separate shell, linux). 
+(Need to add 'print("Main PID:", os.getpid())' to the start on the script, if not there yet)
+```
+PID=YourPID
+while true; do
+    total_kb=$(ps --no-headers -o rss --ppid $PID | awk '{sum+=$1} END {print sum+0}')
+    parent_kb=$(ps -o rss= -p $PID)
+    echo $((total_kb + parent_kb)) >> ram_log_VIIRS.txt
+    sleep 1
+done
+```
+
+3. Total time, CPU, RAM, per-function profiling (run from the MoMProduction dir, with activated venv).
+For Linux conda setup:
+```
+pip install py-spy
+```
+```
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_GFMS.json --format speedscope -- python MoM_run.py -j GFMS 2> resources_GFMS.txt
+```
+```
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_VIIRS.json --format speedscope -- python MoM_run.py -j VIIRS 2> resources_VIIRS.txt
+```
+```
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_DFO.json --format speedscope -- python MoM_run.py -j DFO 2> resources_DFO.txt
+```
+```
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_HWRF.json --format speedscope -- python MoM_run.py -j HWRF 2> resources_HWRF.txt
+```
+
+For Windows uv setup:
+```
+uv add py-spy
+python MoM_run.py -j VIIRS
+```
+Run this from Admin Powershell (per-function profiling):
+```
+py-spy record 50 --subprocesses -o profile_VIIRS.json --format speedscope --pid <PID>
+```
+Launch this in PowerShell (get Timestamp, RAM, CPU) - does NOT include subprocesses:
+```
+typeperf "\Process(python)\Working Set" "\Process(python)\% Processor Time" -si 1 -o resources_VIIRS_win.txt
+```
+
+4. After it finished, find peak and minimum memory (during and before running the code). The difference is the temp storage needed. 
+For Linux:
+```
+awk 'NR==1{min=$1; max=$1} {if($1<min) min=$1; if($1>max) max=$1} END{print (max-min)/1024/1024/1024 " GB"}' disk_log_VIIRS.txt
+```
+For RAM live tracking (if applicable) find maximum:
+```
+sort -n ram_log_VIIRS.txt | tail -1 | awk '{print $1/1024/1024 " Gb"}'
+```
+
+For Windows (Powershell), prints max RAM and CPU:
+```
+"{0} GB" -f [math]::Round(
+    (Get-Content resources_VIIRS_win.txt |
+     Select-Object -Skip 2 |
+     ForEach-Object {
+         $cols = $_ -replace '"' -split ','
+         [double]$cols[1]
+     } |
+     Measure-Object -Maximum).Maximum / 1GB,
+3)
+```
+
+
+======================================================================
+======================================================================
+======================================================================
+
 New installation notes
 TODO: move to separate shell scripts
 
@@ -244,26 +348,8 @@ ______
 conda deactivate
 conda remove -n condaenv --all
 
-(Profiling on linux): 
-pip install py-spy
 
-/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_DFO.json --format speedscope -- python MoM_run.py -j DFO 2> resources_DFO.txt
-/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_GFMS.json --format speedscope -- python MoM_run.py -j GFMS 2> resources_GFMS.txt
-/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_VIIRS.json --format speedscope -- python MoM_run.py -j VIIRS 2> resources_VIIRS.txt
-
-du -sh MoM (to check downloaded folder size)
-Copy to Windows desktop: (for WSL debugging)
-cp profile.json /mnt/c/Users/katri/Desktop/
-cp resources.txt /mnt/c/Users/katri/Desktop/
-
-Log disk usage before starting the code:
-while true; do du -sb . >> disk_log.txt; sleep 1; done
-Then: Ctrl+C
-Find peak and minimum memory (e.g. before running the code): 
-sort -n disk_log.txt | tail -1
-sort -n disk_log.txt | head -1
-
-Log network calls:
+(optional profiling for optimization) Log network calls:
 sudo apt install strace
 strace -tt -T -f -e trace=network -p <PID> -o network_trace.txt
 sort -t '<' -k2 -n network_trace.txt | tail
@@ -285,14 +371,3 @@ Powershell:
 - $env:PROJ_LIB = "$PWD\.venv\Lib\site-packages\pyproj\proj_dir\share\proj"
 - uv pip install .
 - python initialize.py
-
-(Profiling on Windows): 
-uv add py-spy
-Add this to the start of MoM_run:
-import os
-import time
-print("PID:", os.getpid())
-time.sleep(3)
-
-Then launch "python MoM_run.py -j GFMS", ad run this from Admin Powershell:
-py-spy record 50 --subprocesses -o profile.json --format speedscope --pid <PID>
