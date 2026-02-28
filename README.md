@@ -296,79 +296,20 @@ For Windows (Powershell), prints max RAM and CPU:
 New installation notes
 
 Linux (Ubuntu-24.04):
-Create setup.sh file with
+Create setup.sh file at the root folder with
 ```
 nano setup.sh
 ```
-and paste the content of setup.sh file from this repo. Ctrl+O (Save), Ctrl+C (Exit). Run the script:
+and paste the content of setup.sh file from this repo. Ctrl+O (Save), Ctrl+C (Exit). Replace branch name to "main" for stable release. Run the script:
 ```
 . setup.sh
 ```
 
 Windows:
-Run from Admin Powershell:
+Create setup.ps1 file at the root folder and paste the content of setup.ps1 file from this repo. Replace branch name to "main" for stable release. Run from Admin Powershell:
 ```
 Set-ExecutionPolicy Bypass -Scope Process -Force
 ```
 ```
-.\setup.ps1
+. .\setup.ps1
 ```
-
-====================Install on Linux====================
-sudo apt update && sudo apt upgrade -y
-sudo apt install python3.12 python3.12-venv python3.12-dev
-sudo apt install curl
-
-cd ~/
-git clone --branch dev --single-branch --depth 1 https://github.com/Blu-H/MoMProduction.git
-git fetch origin
-git reset --hard origin/dev
-
-Linux uv:
-curl -LsSf https://astral.sh/uv/install.sh | sh (install uv)
-source $HOME/.local/bin/env
-cd MoMProduction
-sudo apt install gdal-bin=3.8.4* libgdal-dev=3.8.4*
-source .venv/bin/activate
-uv pip install "gdal==3.8.4"
-
-Linux conda:
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh (will require several manual confirmations)
-source ~/.bashrc (to avoid restarting the shell)
-conda config --add channels conda-forge
-conda config --set channel_priority strict
-conda config --show channels
-conda install -c conda-forge libgdal-hdf4 (will require several manual confirmations)
-
-cd MoMProduction
-conda env create -f environment.yml
-conda activate myenv
-conda install -c conda-forge libgdal-hdf4 (will require several manual confirmations)
-______
-conda deactivate
-conda remove -n condaenv --all
-
-
-(optional profiling for optimization) Log network calls:
-sudo apt install strace
-strace -tt -T -f -e trace=network -p <PID> -o network_trace.txt
-sort -t '<' -k2 -n network_trace.txt | tail
-
-
-====================Install on Windows====================
-Powershell:
-- install uv: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-- cd MoMProduction
-- uv venv --python 3.12
-- .venv\Scripts\activate
-
-- (optional) $env:SSL_CERT_FILE="$PWD\.venv\Lib\site-packages\certifi\cacert.pem"
-- (optional) $env:CURL_CA_BUNDLE=$env:SSL_CERT_FILE
-- (optional) $env:REQUESTS_CA_BUNDLE=$env:SSL_CERT_FILE
-
-- uv pip install ./installers/gdal-3.11.4-cp312-cp312-win_amd64.whl
-- uv pip install ./installers/pyproj-3.7.2-cp312-cp312-win_amd64.whl
-- $env:PROJ_LIB = "$PWD\.venv\Lib\site-packages\pyproj\proj_dir\share\proj"
-- uv pip install .
-- python initialize.py
