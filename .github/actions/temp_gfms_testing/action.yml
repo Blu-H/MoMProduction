@@ -9,16 +9,15 @@ runs:
       run: |
         python <<'EOF'
         import os
-        from datetime import datetime, timedelta
+        from datetime import datetime, timezone, timedelta
         file_path = os.path.join(".", "GFMS_tool.py")
 
         # Text replacements
-        year_month = (datetime.utcnow() if datetime.utcnow().day >= 20 
-              else (datetime.utcnow().replace(day=1) - timedelta(days=1))
-             ).strftime("%Y%m")
+        year_month = datetime.now(timezone.utc).strftime("%Y%m")
+        year_month_past = (datetime.now(timezone.utc) - timedelta(weeks=4)).strftime("%Y%m")
         replacements = {
-            "(settings.GLOFAS_PROC_DIR, txt)": f"(settings.GLOFAS_PROC_DIR, txt.replace('{year_month}', '202511'))",
-            "job_list.append((txt": f"job_list.append((txt.replace('{year_month}', '202511')"
+            "(settings.GLOFAS_PROC_DIR, txt)": f"(settings.GLOFAS_PROC_DIR, txt.replace('{year_month}', '202511').replace('{year_month_past}', '202511'))",
+            "job_list.append((txt": f"job_list.append((txt.replace('{year_month}', '202511').replace('{year_month_past}', '202511')"
         }
 
         # Read file
