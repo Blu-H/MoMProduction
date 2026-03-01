@@ -1,0 +1,148 @@
+name: pr_check_cross_platform
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+jobs:
+
+  ########################################
+  # UBUNTU JOB
+  ########################################
+  mom-check-ubuntu:
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - job_type: VIIRS
+            files:
+              - "~/MoM/Products/VIIRS/VIIRS_image/VIIRS_1day_composite*.tiff"
+              - "~/MoM/Products/VIIRS/VIIRS_image/VIIRS_5day_composite*.tiff"
+              - "~/MoM/Products/VIIRS/VIIRS_summary/VIIRS_Flood_*.csv"
+          - job_type: GFMS
+            files:
+              - "~/MoM/Products/GFMS/GFMS_image/Flood_byStor_*.tiff"
+              - "~/MoM/Products/GFMS/GFMS_summary/Flood_byStor_*.csv"
+          - job_type: DFO
+            files:
+              - "~/MoM/Products/DFO/DFO_image/DFO_*Flood_3-Day_250m.tiff"
+              - "~/MoM/Products/DFO/DFO_summary/DFO_*.csv"
+          - job_type: HWRF
+            files:
+              - "~/MoM/Products/HWRF/HWRF_image"
+              - "~/MoM/Products/HWRF/HWRF_summary"
+
+    permissions:
+      checks: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run setup
+        run: |
+          chmod +x first_setup/setup.sh
+          ./first_setup/setup.sh
+
+      - name: Replace GFMS dates temporarily (while it's down) - for testing only
+        uses: ./.github/actions/temp_gfms_testing
+
+      - name: Reduce testing time
+        uses: ./.github/actions/reduce_testing_time
+
+      - name: Run ${{ matrix.job_type }} job
+        run: |
+          source "$(conda info --base)/etc/profile.d/conda.sh"
+          conda activate myenv
+          python MoM_run.py -j ${{ matrix.job_type }}
+        env:
+          AUTH_GLOFAS_USER: ${{ secrets.AUTH_GLOFAS_USER }}
+          AUTH_GLOFAS_PASSWD: ${{ secrets.AUTH_GLOFAS_PASSWD }}
+          AUTH_DFO_TOKEN: ${{ secrets.AUTH_DFO_TOKEN }}
+
+      - name: Verify output files for ${{ matrix.job_type }}
+        uses: ./.github/actions/check_path
+        with:
+          path: ${{ toJson(matrix.files) }}
+        env:
+          RUNNER_OS: ${{ runner.os }}
+
+  ########################################
+  # WINDOWS JOB
+  ########################################
+  mom-check-windows:
+    runs-on: windows-2022
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - job_type: VIIRS
+            files:
+              - "~/MoM/Products/VIIRS/VIIRS_image/VIIRS_1day_composite*.tiff"
+              - "~/MoM/Products/VIIRS/VIIRS_image/VIIRS_5day_composite*.tiff"
+              - "~/MoM/Products/VIIRS/VIIRS_summary/VIIRS_Flood_*.csv"
+          - job_type: GFMS
+            files:
+              - "~/MoM/Products/GFMS/GFMS_image/Flood_byStor_*.tiff"
+              - "~/MoM/Products/GFMS/GFMS_summary/Flood_byStor_*.csv"
+          - job_type: DFO
+            files:
+              - "~/MoM/Products/DFO/DFO_image/DFO_*Flood_3-Day_250m.tiff"
+              - "~/MoM/Products/DFO/DFO_summary/DFO_*.csv"
+          - job_type: HWRF
+            files:
+              - "~/MoM/Products/HWRF/HWRF_image"
+              - "~/MoM/Products/HWRF/HWRF_summary"
+
+    permissions:
+      checks: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run setup
+        shell: pwsh
+        run: |
+          .\first_setup\setup.ps1
+
+      - name: Replace GFMS dates temporarily (while it's down) - for testing only
+        uses: ./.github/actions/temp_gfms_testing
+
+      - name: Reduce testing time
+        uses: ./.github/actions/reduce_testing_time
+
+      - name: Run ${{ matrix.job_type }} job
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\activate
+          .\.venv\Scripts\python.exe MoM_run.py -j ${{ matrix.job_type }}
+        env:
+          AUTH_GLOFAS_USER: ${{ secrets.AUTH_GLOFAS_USER }}
+          AUTH_GLOFAS_PASSWD: ${{ secrets.AUTH_GLOFAS_PASSWD }}
+          AUTH_DFO_TOKEN: ${{ secrets.AUTH_DFO_TOKEN }}
+
+      - name: Verify output files for ${{ matrix.job_type }}
+        uses: ./.github/actions/check_path
+        with:
+          path: ${{ toJson(matrix.files) }}
+        env:
+          RUNNER_OS: ${{ runner.os }}

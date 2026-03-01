@@ -300,16 +300,28 @@ Create setup.sh file at the root folder with
 ```
 nano setup.sh
 ```
-and paste the content of setup.sh file from this repo. Ctrl+O (Save), Ctrl+C (Exit). Replace branch name to "main" for stable release. Run the script:
+and paste the content of first_setup/setup.sh file from this repo. Ctrl+O (Save), Ctrl+C (Exit). Replace branch name to "main" for stable release. Run the script:
 ```
-. setup.sh
+. first_setup/setup.sh
+```
+Create persistent env variables for this machine's User scope (can manually replace in 'production.cfg', but not recommended):
+```
+echo 'export AUTH_GLOFAS_USER=myvalue' >> ~/.bashrc
+echo 'export AUTH_GLOFAS_PASSWD=myvalue' >> ~/.bashrc
+echo 'export AUTH_DFO_TOKEN=myvalue' >> ~/.bashrc
 ```
 
-Windows:
-Create setup.ps1 file at the root folder and paste the content of setup.ps1 file from this repo. Replace branch name to "main" for stable release. Run from Admin Powershell:
+Windows (tested on CI, but not on a new Windows machine):
+Create setup.ps1 file at the root folder and paste the content of first_setup/setup.ps1 file from this repo. Replace branch name to "main" for stable release. Run from Admin Powershell:
 ```
 Set-ExecutionPolicy Bypass -Scope Process -Force
 ```
 ```
-. .\setup.ps1
+. .\first_setup\setup.ps1
+```
+Create persistent env variables for this machine's User scope (can manually replace in 'production.cfg', but not recommended):
+```
+[System.Environment]::SetEnvironmentVariable("AUTH_GLOFAS_USER", "myvalue", "User")
+[System.Environment]::SetEnvironmentVariable("AUTH_GLOFAS_PASSWD", "myvalue", "User")
+[System.Environment]::SetEnvironmentVariable("AUTH_DFO_TOKEN", "myvalue", "User")
 ```

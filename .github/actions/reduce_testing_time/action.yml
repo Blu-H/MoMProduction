@@ -1,0 +1,46 @@
+name: Process less data for testing only
+description: Reduce processing time by downloading less data and stopping before MoM_update
+
+runs:
+  using: "composite"
+  steps:
+    - name: Reduce processing time, stop before MoM_update
+      shell: bash
+      run: |
+        python <<'EOF'
+        import os
+        
+        files_to_update = {
+            "VIIRS_tool.py": {
+                "for i in range(1, 137):": "for i in range(1, 3):",
+                "update_VIIRS_MoM(adate)": "import sys; sys.exit()"
+            },
+            "GFMS_tool.py": {
+                "processing_dates = GloFAS_download()": "processing_dates = GloFAS_download()[:2]",
+                "hwrf_workflow(tstr)": "import sys; sys.exit()"
+            },
+            "DFO_tool.py": {
+                "for key in datelist:": "for key in dict([next(iter(datelist.items()))]):",
+                "dataurl,": "'--quota=50m', dataurl,",
+                "update_DFO_MoM(datelist[key])": "import sys; sys.exit()"
+            },
+            "HWRF_MoM.py": {
+                "GFMS_fixdate(adate[:8])": "import sys; sys.exit()"
+            },
+        }
+        
+        for filename, replacements in files_to_update.items():
+            file_path = os.path.join(".", filename)
+
+            # Read file
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            for old, new in replacements.items():
+                content = content.replace(old, new)
+
+            # Write file
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+        EOF

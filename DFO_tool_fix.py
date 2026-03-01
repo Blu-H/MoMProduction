@@ -110,7 +110,7 @@ def dfo_download(subfolder):
             # remove the subfolder
             shutil.rmtree(d_dir)
 
-    dfokey = settings.config.get("dfo", "TOKEN")
+    dfokey = settings.config.get("dfo", "TOKEN") if "???" not in settings.config.get("dfo", "TOKEN") else os.getenv("AUTH_DFO_TOKEN")
     dataurl = os.path.join(get_hosturl(), subfolder)
     
     # os-agnostic process

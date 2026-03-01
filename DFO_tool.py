@@ -110,7 +110,7 @@ def dfo_download(subfolder):
             # remove the subfolder
             shutil.rmtree(d_dir)
 
-    dfokey = settings.config.get("dfo", "TOKEN")
+    dfokey = settings.config.get("dfo", "TOKEN") if "???" not in settings.config.get("dfo", "TOKEN") else os.getenv("AUTH_DFO_TOKEN")
     dataurl = f"{get_hosturl().rstrip('/')}/{subfolder}"
 
     # os-agnostic process
@@ -133,12 +133,11 @@ def dfo_download(subfolder):
         settings.DFO_PROC_DIR,
     ]
 
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as e:
+    result = subprocess.run(cmd, check=True)
+    if result.returncode != 0:
         # something wrong with downloading
-        logging.warning(f"Download failed: {dataurl}, error: {e.returncode}")
-        print("Exit code:", e.returncode)
+        logging.warning(f"Download failed: {dataurl}, error: {result.returncode}")
+        print("Exit code:", result.returncode)
         sys.exit()
 
     return

@@ -29,7 +29,7 @@ from osgeo import gdal
 # append "wget" path for Windows
 if os.name == "nt":
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    installers_path = os.path.join(current_dir, "installers")
+    installers_path = os.path.join(current_dir, "first_setup")
     os.environ["PATH"] = installers_path + os.pathsep + os.environ["PATH"]
 
 from DFO_MoM import batchrun_DFO_MoM
@@ -42,7 +42,7 @@ from VIIRS_tool import VIIRS_cron
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-installers_path = os.path.join(current_dir, "installers")
+installers_path = os.path.join(current_dir, "first_setup")
 sys.path.insert(0, installers_path)
 
 

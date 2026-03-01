@@ -41,8 +41,8 @@ def GloFAS_download():
     """download glofas data from ftp"""
     ftpsite = {}
     ftpsite["host"] = settings.config.get("glofas", "HOST")
-    ftpsite["user"] = settings.config.get("glofas", "USER")
-    ftpsite["passwd"] = settings.config.get("glofas", "PASSWD")
+    ftpsite["user"] = settings.config.get("glofas", "USER") if "???" not in settings.config.get("glofas", "USER") else os.getenv("AUTH_GLOFAS_USER")
+    ftpsite["passwd"] = settings.config.get("glofas", "PASSWD") if "???" not in settings.config.get("glofas", "PASSWD") else os.getenv("AUTH_GLOFAS_PASSWD")
     ftpsite["directory"] = settings.config.get("glofas", "DIRECTORY")
     from ftplib import FTP
 

@@ -9,14 +9,14 @@ $RepoDir = "$HOME\MoMProduction"
 $RepoBranch = "dev"
 $PythonVersionRequired = "3.12"
 
+
 ############################################
-# ENSURE WINGET INSTALLED
+# INSTALL CHOCOLATEY
 ############################################
 
-if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-    Write-Host "Installing winget..."
-    Add-AppxPackage -Path "https://aka.ms/getwinget"
-}
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[System.Net.ServicePointManager]::SecurityProtocol = 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
 ############################################
 # ENSURE PYTHON 3.12 INSTALLED
@@ -33,7 +33,7 @@ try {
 
 if (-not $pythonInstalled) {
     Write-Host "Installing Python 3.12..."
-    winget install --id Python.Python.3.12 -e --silent --accept-package-agreements --accept-source-agreements
+    choco install python --version=3.12.0 -y
 } else {
     Write-Host "Python 3.12 already installed."
 }
@@ -44,7 +44,7 @@ if (-not $pythonInstalled) {
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Git..."
-    winget install --id Git.Git -e --silent --accept-package-agreements --accept-source-agreements
+    choco install git -y
 } else {
     Write-Host "Git already installed."
 }
@@ -53,11 +53,13 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 # CLONE OR UPDATE REPOSITORY
 ############################################
 
-if (-not (Test-Path "$RepoDir\.git")) {
+if (Test-Path Env:\GITHUB_WORKSPACE) {
+    Write-Host "Running in GitHub Actions. Repository already exists. Skipping clone."
+    $RepoDir = $env:GITHUB_WORKSPACE
+} else {
+
     Write-Host "Cloning repository..."
     git clone --branch $RepoBranch --single-branch --depth 1 $RepoUrl $RepoDir
-} else {
-    Write-Host "Repository already exists. Skipping clone."
 }
 
 ############################################
@@ -66,7 +68,8 @@ if (-not (Test-Path "$RepoDir\.git")) {
 
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     Write-Host "Installing uv from local installer..."
-    & "$RepoDir\installers\uv-installer.ps1"
+    & "$RepoDir\first_setup\uv-installer.ps1"
+    $env:Path = "C:\Users\runneradmin\.local\bin;$env:Path"
 } else {
     Write-Host "uv already installed."
 }
@@ -104,12 +107,12 @@ $env:REQUESTS_CA_BUNDLE = $env:SSL_CERT_FILE
 
 if (-not (Get-Module -ListAvailable -Name osgeo)) {
     Write-Host "Installing GDAL wheel..."
-    uv pip install ./installers/gdal-3.11.4-cp312-cp312-win_amd64.whl
+    uv pip install ./first_setup/gdal-3.11.4-cp312-cp312-win_amd64.whl
 }
 
 if (-not (Get-Module -ListAvailable -Name pyproj)) {
     Write-Host "Installing pyproj wheel..."
-    uv pip install ./installers/pyproj-3.7.2-cp312-cp312-win_amd64.whl
+    uv pip install ./first_setup/pyproj-3.7.2-cp312-cp312-win_amd64.whl
 }
 
 ############################################
