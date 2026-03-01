@@ -418,10 +418,8 @@ def VIIRS_cron(adate=""):
         # check two days
         with Pool(processes=2) as p:
             # p.map(run_job, [2, 1])
-            jobs = []
             dates = [generate_adate(delay) for delay in [2, 1]]
-            for adate in dates:
-                jobs.append(p.apply_async(VIIRS_run_adate, (adate,)))
+            jobs = [p.apply_async(VIIRS_run_adate, (adate,)) for adate in dates]
 
             # wait for all to finish, handle exceptions inside the pool to avoid hanging
             try:
