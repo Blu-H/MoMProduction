@@ -403,18 +403,6 @@ def VIIRS_run_adate(adate):
     # extract data from tiffs
     VIIRS_extract_by_watershed(adate, tiffs)
 
-    # update VIIRS MoM
-    update_VIIRS_MoM(adate)
-
-    os.chdir(settings.BASE_DIR)
-
-
-def run_job(delay):
-    print("PID:", os.getpid())
-
-    adate = generate_adate(delay=delay)
-    VIIRS_run_adate(adate)
-
 
 def VIIRS_cron(adate=""):
     """main cron script"""
@@ -423,7 +411,6 @@ def VIIRS_cron(adate=""):
     # basepath = os.path.dirname(os.path.abspath(__file__))
     # load_config()
 
-    print("PID:", os.getpid())
     processes = 2
     gdal.SetConfigOption("GDAL_NUM_THREADS", str(os.cpu_count() / processes))
 
@@ -431,9 +418,25 @@ def VIIRS_cron(adate=""):
         # check two days
         with Pool(processes=2) as p:
             # p.map(run_job, [2, 1])
-            jobs = [p.apply_async(run_job, (i,)) for i in [2, 1]]
-            # wait for all to finish
-            [job.get() for job in jobs]
+            jobs = []
+            dates = [generate_adate(delay) for delay in [2, 1]]
+            for adate in dates:
+                jobs.append(p.apply_async(VIIRS_run_adate, (adate,)))
+
+            # wait for all to finish, handle exceptions inside the pool to avoid hanging
+            try:
+                [job.get() for job in jobs]
+            except Exception as e:
+                print("Error detected, terminating pool...")
+                p.terminate()
+                p.join()
+                sys.exit(1)
+
+            # update VIIRS MoM outside of the subprocess
+            [update_VIIRS_MoM(adate) for adate in dates]
+
+            # change current working directory back to base dir
+            os.chdir(settings.BASE_DIR)
 
         # adate = generate_adate(delay=0)
         # VIIRS_run_adate(adate)

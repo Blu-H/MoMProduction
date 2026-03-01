@@ -289,13 +289,11 @@ For Windows (Powershell), prints max RAM and CPU:
 ```
 
 
-======================================================================
-======================================================================
-======================================================================
+___________________________________________________________________________
 
-New installation notes
+## New installation notes
 
-Linux (Ubuntu-24.04):
+**Linux** (Ubuntu-24.04):
 Create setup.sh file at the root folder with
 ```
 nano setup.sh
@@ -311,7 +309,7 @@ echo 'export AUTH_GLOFAS_PASSWD=myvalue' >> ~/.bashrc
 echo 'export AUTH_DFO_TOKEN=myvalue' >> ~/.bashrc
 ```
 
-Windows (tested on CI, but not on a new Windows machine):
+**Windows** (tested on CI, but not on a new Windows machine):
 Create setup.ps1 file at the root folder and paste the content of first_setup/setup.ps1 file from this repo. Replace branch name to "main" for stable release. Run from Admin Powershell:
 ```
 Set-ExecutionPolicy Bypass -Scope Process -Force
