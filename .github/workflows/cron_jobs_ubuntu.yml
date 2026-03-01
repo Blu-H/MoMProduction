@@ -1,6 +1,10 @@
 name: cron_jobs_ubuntu
 
 on:
+  pull_request:
+    branches:
+      - dev
+      - main
   workflow_dispatch:
 
 jobs:
@@ -33,14 +37,17 @@ jobs:
 
     steps:
       - name: Checkout repository
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/checkout@v4
 
       - name: Run setup
+        if: github.event_name == 'workflow_dispatch'
         run: |
           chmod +x first_setup/setup.sh
           ./first_setup/setup.sh
         
       - name: Run ${{ matrix.name }}
+        if: github.event_name == 'workflow_dispatch'
         run: |
           source "$(conda info --base)/etc/profile.d/conda.sh"
           conda activate myenv
