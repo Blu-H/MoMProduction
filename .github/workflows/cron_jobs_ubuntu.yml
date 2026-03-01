@@ -1,11 +1,6 @@
 name: cron_jobs_ubuntu
 
 on:
-  # schedule:
-  #  - cron: '0 4,11,14,21 * * *'
-  #  - cron: '0 2,7,13,19 * * *'
-  #  - cron: '0 3,10,23 * * *'
-  #  - cron: '0 5,12,17 * * *'
   workflow_dispatch:
 
 jobs:
@@ -38,11 +33,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == matrix.cron
         uses: actions/checkout@v4
 
       - name: Run setup
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == matrix.cron
         run: |
           chmod +x first_setup/setup.sh
           ./first_setup/setup.sh
@@ -51,7 +44,6 @@ jobs:
         uses: ./.github/actions/temp_gfms_testing
         
       - name: Run ${{ matrix.name }}
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == matrix.cron
         run: |
           source "$(conda info --base)/etc/profile.d/conda.sh"
           conda activate myenv
