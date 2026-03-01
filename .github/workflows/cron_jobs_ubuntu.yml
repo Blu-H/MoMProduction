@@ -1,11 +1,11 @@
 name: cron_jobs_ubuntu
 
 on:
-  schedule:
-    - cron: '0 4,11,14,21 * * *'
-    - cron: '0 2,7,13,19 * * *'
-    - cron: '0 3,10,23 * * *'
-    - cron: '0 5,12,17 * * *'
+  # schedule:
+  #  - cron: '0 4,11,14,21 * * *'
+  #  - cron: '0 2,7,13,19 * * *'
+  #  - cron: '0 3,10,23 * * *'
+  #  - cron: '0 5,12,17 * * *'
   workflow_dispatch:
 
 jobs:
