@@ -13,6 +13,7 @@ jobs:
   # UBUNTU JOB
   ########################################
   mom-check-ubuntu:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
 
     strategy:
@@ -82,6 +83,7 @@ jobs:
   # WINDOWS JOB
   ########################################
   mom-check-windows:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-2022
 
     strategy:

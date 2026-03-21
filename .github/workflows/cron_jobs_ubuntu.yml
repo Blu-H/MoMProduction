@@ -9,6 +9,7 @@ on:
 
 jobs:
   scheduled:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
 
     strategy:
@@ -35,6 +36,10 @@ jobs:
             script: MoM_run.py
             args: -j VIIRS
 
+    permissions:
+      checks: write
+      pull-requests: write
+      
     steps:
       - name: Checkout repository
         if: github.event_name == 'workflow_dispatch'
