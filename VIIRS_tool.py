@@ -411,37 +411,41 @@ def VIIRS_cron(adate=""):
     # basepath = os.path.dirname(os.path.abspath(__file__))
     # load_config()
 
+    dates = [adate]
+    if adate == "":
+        dates = [generate_adate(delay) for delay in [2, 1]]
+
+    for adate in dates:
+        VIIRS_run_adate(adate)
+        update_VIIRS_MoM(adate)
+
+    # change current working directory back to base dir
+    os.chdir(settings.BASE_DIR)
+
+    # using parallel processing - too much RAM for some services
+    r"""
     processes = 2
     gdal.SetConfigOption("GDAL_NUM_THREADS", str(os.cpu_count() / processes))
+    
+    with Pool(processes=2) as p:
+        dates = [generate_adate(delay) for delay in [2, 1]]
+        jobs = [p.apply_async(VIIRS_run_adate, (adate,)) for adate in dates]
 
-    if adate == "":
-        # check two days
-        with Pool(processes=2) as p:
-            # p.map(run_job, [2, 1])
-            dates = [generate_adate(delay) for delay in [2, 1]]
-            jobs = [p.apply_async(VIIRS_run_adate, (adate,)) for adate in dates]
+        # wait for all to finish, handle exceptions inside the pool to avoid hanging
+        try:
+            [job.get() for job in jobs]
+        except Exception as e:
+            print("Error detected, terminating pool...")
+            p.terminate()
+            p.join()
+            sys.exit(1)
 
-            # wait for all to finish, handle exceptions inside the pool to avoid hanging
-            try:
-                [job.get() for job in jobs]
-            except Exception as e:
-                print("Error detected, terminating pool...")
-                p.terminate()
-                p.join()
-                sys.exit(1)
+        # update VIIRS MoM outside of the subprocess
+        [update_VIIRS_MoM(adate) for adate in dates]
 
-            # update VIIRS MoM outside of the subprocess
-            [update_VIIRS_MoM(adate) for adate in dates]
-
-            # change current working directory back to base dir
-            os.chdir(settings.BASE_DIR)
-
-        # adate = generate_adate(delay=0)
-        # VIIRS_run_adate(adate)
-    else:
-        VIIRS_run_adate(adate)
-
-    return
+        # change current working directory back to base dir
+        os.chdir(settings.BASE_DIR)
+    """
 
 
 def main():
