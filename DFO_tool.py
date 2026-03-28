@@ -24,12 +24,15 @@ import pandas as pd
 import rasterio
 import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 from rasterio.mask import mask
 from osgeo import gdal
 
 from DFO_MoM import update_DFO_MoM
 import settings
 from utilities import from_today, watersheds_gdb_reader
+
+load_dotenv()
 
 # for command line mode, no need for cron-job
 # from progressbar import progress

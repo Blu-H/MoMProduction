@@ -16,6 +16,7 @@ import math
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
 
 import geopandas
 import numpy as np
@@ -32,6 +33,8 @@ from GFMS_MoM import flood_severity
 from HWRF_MoM import hwrf_workflow
 import settings
 from utilities import findLatest, hwrf_today, watersheds_gdb_reader
+
+load_dotenv()
 
 # no need for cron-job
 # from progressbar import progress
