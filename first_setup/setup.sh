@@ -45,7 +45,6 @@ if [ "$IS_GITHUB_ACTIONS" = false ]; then
         curl \
         git \
         wget
-    sudo apt install libpq-dev python3-dev gcc
 else
     echo "Skipping system package installation in GitHub Actions."
 fi
