@@ -9,6 +9,8 @@ $RepoDir = "$HOME\MoMProduction"
 $RepoBranch = "dev"
 $PythonVersionRequired = "3.12"
 
+Set-TimeZone -Id "UTC"
+
 
 ############################################
 # INSTALL CHOCOLATEY
