@@ -28,6 +28,8 @@ PRODUCT_DIR = os.path.expanduser(
     config.get("general", "PRODUCT_DIR").replace("/", os.sep)
 )
 
+DB_DATA_DIR = os.path.expanduser(config.get("db", "DB_DATA_DIR").replace("/", os.sep))
+
 # config GLOFAS directory
 GLOFAS_PROC_DIR = os.path.join(WORKING_DIR, config.get("processing_dir", "glofas"))
 GLOFAS_DIR = os.path.join(PRODUCT_DIR, config.get("products_dir", "GLOFAS"))
