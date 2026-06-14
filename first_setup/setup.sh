@@ -128,6 +128,7 @@ conda activate "$CONDA_ENV_NAME"
 
 echo "Installing libgdal-hdf4 in environment..."
 conda install -c conda-forge libgdal-hdf4 -y
+conda install -c conda-forge libgdal-hdf4=3.12.2 --no-update-deps -y
 
 ############################
 # RUN INITIALIZE.PY
