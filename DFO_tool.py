@@ -31,6 +31,7 @@ from osgeo import gdal
 from DFO_MoM import update_DFO_MoM
 import settings
 from utilities import from_today, watersheds_gdb_reader
+from utils.convert_to_cog_utils import convert_to_cog
 
 load_dotenv()
 
@@ -113,7 +114,11 @@ def dfo_download(subfolder):
             # remove the subfolder
             shutil.rmtree(d_dir)
 
-    dfokey = settings.config.get("dfo", "TOKEN") if "???" not in settings.config.get("dfo", "TOKEN") else os.getenv("AUTH_DFO_TOKEN")
+    dfokey = (
+        settings.config.get("dfo", "TOKEN")
+        if "???" not in settings.config.get("dfo", "TOKEN")
+        else os.getenv("AUTH_DFO_TOKEN")
+    )
     dataurl = f"{get_hosturl().rstrip('/')}/{subfolder}"
 
     # os-agnostic process
@@ -337,6 +342,11 @@ def DFO_process(folder, adate):
                 f"gdal_translate -co TILED=YES -co COMPRESS=LZW -of GTiff {vrt} {tiff}"
             )
             os.system(gdalcmd)
+
+            # Convert to COG
+            if settings.config.get("cog", "convert_to_cog") == "True":
+                convert_to_cog(tiff)
+
             # build overview
             # gdalcmd = f'gdaladdo -r average {tiff} 2 4 8 16 32'
             # os.system(gdalcmd)

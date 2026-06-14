@@ -35,6 +35,8 @@ from VIIRS_MoM import update_VIIRS_MoM
 
 import xml.etree.ElementTree as ET
 
+from utils.convert_to_cog_utils import convert_to_cog
+
 
 def generate_adate(delay=1):
     """generate 1 day delay date"""
@@ -288,6 +290,10 @@ def build_tiff(adate):
             os.remove(vrt_file)
 
         final_2_tiffs.append(tiff_file)
+
+        # Convert to COG
+        if settings.config.get("cog", "convert_to_cog") == "True":
+            convert_to_cog(tiff_file)
 
     return final_2_tiffs
 

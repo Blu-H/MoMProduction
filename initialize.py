@@ -19,6 +19,9 @@ if not os.path.exists("production.cfg"):
 
 import settings  # import after creating "production.cfg", because variables in settings rely on that file
 
+print(settings.config.get("cog", "convert_to_cog"))
+print(type(settings.config.get("cog", "convert_to_cog")))
+
 
 def create_dir(apath):
     """create dir with a path"""

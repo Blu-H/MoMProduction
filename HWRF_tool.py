@@ -27,6 +27,7 @@ from shapely.geometry import Point
 import settings
 from HWRF_MoM import hwrf_workflow
 from utilities import get_current_processing_datehour, hwrf_today, watersheds_gdb_reader
+from utils.convert_to_cog_utils import convert_to_cog
 
 
 def check_status(adate):
@@ -328,6 +329,10 @@ def HWRF_extract_by_watershed(raintiff):
         shutil.move(output_csv, os.path.join(settings.HWRF_SUM_DIR, output_csv))
         shutil.move(raintiff, os.path.join(settings.HWRF_IMG_DIR, raintiff))
         os.remove(raintiff.replace(".tiff", ".vrt"))
+
+        # Convert to COG
+        if settings.config.get("cog", "convert_to_cog") == "True":
+            convert_to_cog(os.path.join(settings.HWRF_IMG_DIR, raintiff))
     else:
         os.remove(raintiff)
         os.remove(output_csv)

@@ -33,6 +33,7 @@ from GFMS_MoM import flood_severity
 from HWRF_MoM import hwrf_workflow
 import settings
 from utilities import findLatest, hwrf_today, watersheds_gdb_reader
+from utils.convert_to_cog_utils import convert_to_cog
 
 load_dotenv()
 
@@ -44,8 +45,16 @@ def GloFAS_download():
     """download glofas data from ftp"""
     ftpsite = {}
     ftpsite["host"] = settings.config.get("glofas", "HOST")
-    ftpsite["user"] = settings.config.get("glofas", "USER") if "???" not in settings.config.get("glofas", "USER") else os.getenv("AUTH_GLOFAS_USER")
-    ftpsite["passwd"] = settings.config.get("glofas", "PASSWD") if "???" not in settings.config.get("glofas", "PASSWD") else os.getenv("AUTH_GLOFAS_PASSWD")
+    ftpsite["user"] = (
+        settings.config.get("glofas", "USER")
+        if "???" not in settings.config.get("glofas", "USER")
+        else os.getenv("AUTH_GLOFAS_USER")
+    )
+    ftpsite["passwd"] = (
+        settings.config.get("glofas", "PASSWD")
+        if "???" not in settings.config.get("glofas", "PASSWD")
+        else os.getenv("AUTH_GLOFAS_PASSWD")
+    )
     ftpsite["directory"] = settings.config.get("glofas", "DIRECTORY")
     from ftplib import FTP
 
@@ -514,6 +523,10 @@ def GFMS_data_extractor(bin_file):
     gdalcmd = f"gdal_translate -co TILED=YES -co COMPRESS=LZW -of GTiff {vrt_file} {tiff_file}"
     os.system(gdalcmd)
     logging.info("generated: " + tiff_file)
+
+    # Convert to COG
+    if settings.config.get("cog", "convert_to_cog") == "True":
+        convert_to_cog(tiff_file)
 
     return
 

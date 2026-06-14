@@ -5,19 +5,15 @@ serve_cog_nginx.py
 Generate a minimal Nginx configuration and start/stop a local Nginx process
 that serves the COG image folder over HTTP.
 
-The COG root is derived from DATA_DIR in first_setup/db_setup/db_config.cfg
-(sibling directory: <parent of DATA_DIR>/cog_images), identical to the path
-used by upload_local_images.py.
-
 Only .tiff / .tif files are served.  Directory listing is disabled.  All other
 paths return 403.  CORS and Accept-Ranges headers are set so COG clients can
 perform HTTP range requests against individual tiles and overview levels.
 
 Usage:
-    python database_update/serve_cog_nginx.py start   [--port PORT]
-    python database_update/serve_cog_nginx.py stop
-    python database_update/serve_cog_nginx.py status
-    python database_update/serve_cog_nginx.py config  # print generated config only
+    python first_setup/serving_cogs/serve_cog_nginx.py start   [--port PORT]
+    python first_setup/serving_cogs/serve_cog_nginx.py stop
+    python first_setup/serving_cogs/serve_cog_nginx.py status
+    python first_setup/serving_cogs/serve_cog_nginx.py config  # print generated config only
 
 Requests:
     curl -I http://167.71.4.135:8090/GFMS/Flood_byStor_2025010100.tiff
@@ -29,18 +25,12 @@ Defaults:
 
 import argparse
 import os
-import re
 import signal
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import settings
-
-# ---------------------------------------------------------------------------
-# Shared path helpers (same logic as upload_local_images.py)
-# ---------------------------------------------------------------------------
 
 # Runtime files written next to this script so they are easy to locate
 _SCRIPT_DIR = Path(__file__).parent
@@ -50,16 +40,6 @@ _ERROR_LOG = _SCRIPT_DIR / "nginx_cog_error.log"
 _ACCESS_LOG = _SCRIPT_DIR / "nginx_cog_access.log"
 
 DEFAULT_PORT = 8090
-
-
-def _get_cog_root() -> Path:
-    """Derive the COG root from DATA_DIR in db_config.cfg."""
-    cfg_path = os.path(settings.config.get("cog", "COG_DIR"))
-    if not os.path.exists(cfg_path):
-        os.mkdir(cfg_path)
-
-    return Path(cfg_path).expanduser()
-
 
 # ---------------------------------------------------------------------------
 # Nginx config generation
@@ -274,7 +254,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    cog_root = _get_cog_root()
+    cog_root = settings.COG_DIR
 
     if args.command == "config":
         cmd_config(cog_root, args.port)
