@@ -1,0 +1,33 @@
+name: Replace GFMS dates to 2025
+description: Replaces dates in GFMS_tool.py with available values (year 2025)
+
+runs:
+  using: "composite"
+  steps:
+    - name: Replace dates in GFMS_tool.py
+      shell: bash
+      run: |
+        python <<'EOF'
+        import os
+        from datetime import datetime, timezone, timedelta
+        file_path = os.path.join(".", "GFMS_tool.py")
+
+        # Text replacements
+        year_month = datetime.now(timezone.utc).strftime("%Y%m")
+        year_month_past = (datetime.now(timezone.utc) - timedelta(weeks=4)).strftime("%Y%m")
+        replacements = {
+            "(settings.GLOFAS_PROC_DIR, txt)": f"(settings.GLOFAS_PROC_DIR, txt.replace('{year_month}', '202511').replace('{year_month_past}', '202511'))",
+            "job_list.append((txt": f"job_list.append((txt.replace('{year_month}', '202511').replace('{year_month_past}', '202511')"
+        }
+
+        # Read file
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        for old, new in replacements.items():
+            content = content.replace(old, new)
+
+        # Write file
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        EOF

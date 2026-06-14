@@ -205,94 +205,121 @@ data
 └── VIIRS_Weightage.csv
 ```
 
-New installation notes
-TODO: move to separate shell scripts
+## 8. Profiling scripts
 
-====================Install on Linux====================
-sudo apt update && sudo apt upgrade -y
-sudo apt install python3.12 python3.12-venv python3.12-dev
-sudo apt install curl
+1. Start logging disk usage before running the script (separate shell, linux)
+```
+while true; do du -sb MoM >> disk_log_GFMS.txt; sleep 1; done
+```
+```
+while true; do du -sb MoM >> disk_log_VIIRS.txt; sleep 1; done
+```
+```
+while true; do du -sb MoM >> disk_log_DFO.txt; sleep 1; done
+```
+```
+while true; do du -sb MoM >> disk_log_HWRF.txt; sleep 1; done
+```
 
-cd ~/
-git clone --branch main --single-branch --depth 1 https://github.com/Blu-H/MoMProduction.git
-git fetch origin
-git reset --hard origin/main
+2. If parallel processing applied (e.g. in VIIRS), track live RAM usage (separate shell, linux). 
+(Need to add 'print("Main PID:", os.getpid())' to the start on the script, if not there yet)
+```
+PID=YourPID
+while true; do
+    total_kb=$(ps --no-headers -o rss --ppid $PID | awk '{sum+=$1} END {print sum+0}')
+    parent_kb=$(ps -o rss= -p $PID)
+    echo $((total_kb + parent_kb)) >> ram_log_VIIRS.txt
+    sleep 1
+done
+```
 
-Linux uv:
-curl -LsSf https://astral.sh/uv/install.sh | sh (install uv)
-source $HOME/.local/bin/env
-cd MoMProduction
-sudo apt install gdal-bin=3.8.4* libgdal-dev=3.8.4*
-(in the folder)
-source .venv/bin/activate
-uv pip install "gdal==3.8.4"
-
-Linux conda:
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh (will require several manual confirmations)
-source ~/.bashrc (to avoid restarting the shell)
-conda config --add channels conda-forge
-conda config --set channel_priority strict
-conda config --show channels
-conda install -c conda-forge libgdal-hdf4 (will require several manual confirmations)
-
-cd MoMProduction
-conda env create -f environment.yml
-conda activate myenv
-conda install -c conda-forge libgdal-hdf4 (will require several manual confirmations)
-______
-conda deactivate
-conda remove -n condaenv --all
-
-(Profiling on linux): 
+3. Total time, CPU, RAM, per-function profiling (run from the MoMProduction dir, with activated venv).
+For Linux conda setup:
+```
 pip install py-spy
-
-/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_DFO.json --format speedscope -- python MoM_run.py -j DFO 2> resources_DFO.txt
+```
+```
 /usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_GFMS.json --format speedscope -- python MoM_run.py -j GFMS 2> resources_GFMS.txt
+```
+```
 /usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_VIIRS.json --format speedscope -- python MoM_run.py -j VIIRS 2> resources_VIIRS.txt
+```
+```
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_DFO.json --format speedscope -- python MoM_run.py -j DFO 2> resources_DFO.txt
+```
+```
+/usr/bin/time -v py-spy record -r 50 --subprocesses -o profile_HWRF.json --format speedscope -- python MoM_run.py -j HWRF 2> resources_HWRF.txt
+```
 
-du -sh MoM (to check downloaded folder size)
-Copy to Windows desktop: (for WSL debugging)
-cp profile.json /mnt/c/Users/katri/Desktop/
-cp resources.txt /mnt/c/Users/katri/Desktop/
-
-Log disk usage before starting the code:
-while true; do du -sb . >> disk_log.txt; sleep 1; done
-Then: Ctrl+C
-Find peak and minimum memory (e.g. before running the code): 
-sort -n disk_log.txt | tail -1
-sort -n disk_log.txt | head -1
-
-Log network calls:
-sudo apt install strace
-strace -tt -T -f -e trace=network -p <PID> -o network_trace.txt
-sort -t '<' -k2 -n network_trace.txt | tail
-
-
-====================Install on Windows====================
-Powershell:
-- install uv: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-- cd MoMProduction
-- uv venv --python 3.12
-- .venv\Scripts\activate
-
-- (optional) $env:SSL_CERT_FILE="$PWD\.venv\Lib\site-packages\certifi\cacert.pem"
-- (optional) $env:CURL_CA_BUNDLE=$env:SSL_CERT_FILE
-- (optional) $env:REQUESTS_CA_BUNDLE=$env:SSL_CERT_FILE
-
-- uv pip install ./installers/gdal-3.11.4-cp312-cp312-win_amd64.whl
-- uv pip install ./installers/pyproj-3.7.2-cp312-cp312-win_amd64.whl
-- $env:PROJ_LIB = "$PWD\.venv\Lib\site-packages\pyproj\proj_dir\share\proj"
-- uv pip install .
-- python initialize.py
-
-(Profiling on Windows): 
+For Windows uv setup:
+```
 uv add py-spy
-Add this to the start of MoM_run:
-import os
-import time
-print("PID:", os.getpid())
-time.sleep(3)
+python MoM_run.py -j VIIRS
+```
+Run this from Admin Powershell (per-function profiling):
+```
+py-spy record 50 --subprocesses -o profile_VIIRS.json --format speedscope --pid <PID>
+```
+Launch this in PowerShell (get Timestamp, RAM, CPU) - does NOT include subprocesses:
+```
+typeperf "\Process(python)\Working Set" "\Process(python)\% Processor Time" -si 1 -o resources_VIIRS_win.txt
+```
 
-Then launch "python MoM_run.py -j GFMS", ad run this from Admin Powershell:
-py-spy record 50 --subprocesses -o profile.json --format speedscope --pid <PID>
+4. After it finished, find peak and minimum memory (during and before running the code). The difference is the temp storage needed. 
+For Linux:
+```
+awk 'NR==1{min=$1; max=$1} {if($1<min) min=$1; if($1>max) max=$1} END{print (max-min)/1024/1024/1024 " GB"}' disk_log_VIIRS.txt
+```
+For RAM live tracking (if applicable) find maximum:
+```
+sort -n ram_log_VIIRS.txt | tail -1 | awk '{print $1/1024/1024 " Gb"}'
+```
+
+For Windows (Powershell), prints max RAM and CPU:
+```
+"{0} GB" -f [math]::Round(
+    (Get-Content resources_VIIRS_win.txt |
+     Select-Object -Skip 2 |
+     ForEach-Object {
+         $cols = $_ -replace '"' -split ','
+         [double]$cols[1]
+     } |
+     Measure-Object -Maximum).Maximum / 1GB,
+3)
+```
+
+
+___________________________________________________________________________
+
+## New installation notes
+
+**Linux** (Ubuntu-24.04):
+Create setup.sh file at the root folder with
+```
+nano setup.sh
+```
+and paste the content of first_setup/setup.sh file from this repo. Ctrl+O (Save), Ctrl+C (Exit). Replace branch name to "main" for stable release. Run the script:
+```
+. first_setup/setup.sh
+```
+Create persistent env variables for this machine's User scope (can manually replace in 'production.cfg', but not recommended):
+```
+echo 'export AUTH_GLOFAS_USER=myvalue' >> ~/.bashrc
+echo 'export AUTH_GLOFAS_PASSWD=myvalue' >> ~/.bashrc
+echo 'export AUTH_DFO_TOKEN=myvalue' >> ~/.bashrc
+```
+
+**Windows** (tested on CI, but not on a new Windows machine):
+Create setup.ps1 file at the root folder and paste the content of first_setup/setup.ps1 file from this repo. Replace branch name to "main" for stable release. Run from Admin Powershell:
+```
+Set-ExecutionPolicy Bypass -Scope Process -Force
+```
+```
+. .\first_setup\setup.ps1
+```
+Create persistent env variables for this machine's User scope (can manually replace in 'production.cfg', but not recommended):
+```
+[System.Environment]::SetEnvironmentVariable("AUTH_GLOFAS_USER", "myvalue", "User")
+[System.Environment]::SetEnvironmentVariable("AUTH_GLOFAS_PASSWD", "myvalue", "User")
+[System.Environment]::SetEnvironmentVariable("AUTH_DFO_TOKEN", "myvalue", "User")
+```

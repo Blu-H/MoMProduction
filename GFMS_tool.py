@@ -16,6 +16,7 @@ import math
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
 
 import geopandas
 import numpy as np
@@ -33,6 +34,8 @@ from HWRF_MoM import hwrf_workflow
 import settings
 from utilities import findLatest, hwrf_today, watersheds_gdb_reader
 
+load_dotenv()
+
 # no need for cron-job
 # from progressbar import progress
 
@@ -41,8 +44,8 @@ def GloFAS_download():
     """download glofas data from ftp"""
     ftpsite = {}
     ftpsite["host"] = settings.config.get("glofas", "HOST")
-    ftpsite["user"] = settings.config.get("glofas", "USER")
-    ftpsite["passwd"] = settings.config.get("glofas", "PASSWD")
+    ftpsite["user"] = settings.config.get("glofas", "USER") if "???" not in settings.config.get("glofas", "USER") else os.getenv("AUTH_GLOFAS_USER")
+    ftpsite["passwd"] = settings.config.get("glofas", "PASSWD") if "???" not in settings.config.get("glofas", "PASSWD") else os.getenv("AUTH_GLOFAS_PASSWD")
     ftpsite["directory"] = settings.config.get("glofas", "DIRECTORY")
     from ftplib import FTP
 

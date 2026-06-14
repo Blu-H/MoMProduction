@@ -16,8 +16,9 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import date, datetime, timezone
 import zipfile
+from datetime import date, datetime, timezone
+from dotenv import load_dotenv
 
 import geopandas
 import numpy as np
@@ -30,6 +31,8 @@ from rasterio.mask import mask
 from DFO_MoM import update_DFO_MoM
 import settings
 from utilities import from_today, watersheds_gdb_reader
+
+load_dotenv()
 
 # for command line mode, no need for cron-job
 # from progressbar import progress
@@ -110,7 +113,7 @@ def dfo_download(subfolder):
             # remove the subfolder
             shutil.rmtree(d_dir)
 
-    dfokey = settings.config.get("dfo", "TOKEN")
+    dfokey = settings.config.get("dfo", "TOKEN") if "???" not in settings.config.get("dfo", "TOKEN") else os.getenv("AUTH_DFO_TOKEN")
     dataurl = os.path.join(get_hosturl(), subfolder)
     
     # os-agnostic process

@@ -1,0 +1,44 @@
+name: Check Path Exists
+description: Verifies that given file patterns exist (supports wildcards)
+
+inputs:
+  path:
+    description: "JSON array of file patterns"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Verify patterns
+      shell: bash
+      run: |
+        PATTERNS='${{ inputs.path }}'
+
+        python <<EOF
+        import os, sys, json, glob
+
+        patterns = json.loads("""$PATTERNS""")
+        runner_os = os.environ["RUNNER_OS"]
+
+        home = os.path.expanduser("~")
+
+        for pattern in patterns:
+            # Expand ~
+            pattern = os.path.expanduser(pattern)
+
+            if runner_os == "Windows":
+                pattern = os.path.normpath(pattern)
+
+            print(f"Checking pattern: {pattern}")
+
+            matches = glob.glob(pattern)
+
+            if not matches:
+                print(f"ERROR: No files match: {pattern}")
+                sys.exit(1)
+
+            for m in matches:
+                print(" -", m)
+
+        print("All required patterns matched.")
+        EOF

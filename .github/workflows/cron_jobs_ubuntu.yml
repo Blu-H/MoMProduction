@@ -1,0 +1,59 @@
+name: cron_jobs_ubuntu
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+jobs:
+  scheduled:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GFMS
+            cron: '0 4,11,14,21 * * *'
+            script: MoM_run.py
+            args: -j GFMS
+
+          - name: HWRF
+            cron: '0 2,7,13,19 * * *'
+            script: MoM_run.py
+            args: -j HWRF
+
+          - name: DFO
+            cron: '0 3,10,23 * * *'
+            script: MoM_run.py
+            args: -j DFO
+
+          - name: VIIRS
+            cron: '0 5,12,17 * * *'
+            script: MoM_run.py
+            args: -j VIIRS
+
+    steps:
+      - name: Checkout repository
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+
+      - name: Run setup
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          chmod +x first_setup/setup.sh
+          ./first_setup/setup.sh
+        
+      - name: Run ${{ matrix.name }}
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          source "$(conda info --base)/etc/profile.d/conda.sh"
+          conda activate myenv
+          python ${{ matrix.script }} ${{ matrix.args }}
+        env:
+          AUTH_GLOFAS_USER: ${{ secrets.AUTH_GLOFAS_USER }}
+          AUTH_GLOFAS_PASSWD: ${{ secrets.AUTH_GLOFAS_PASSWD }}
+          AUTH_DFO_TOKEN: ${{ secrets.AUTH_DFO_TOKEN }}
