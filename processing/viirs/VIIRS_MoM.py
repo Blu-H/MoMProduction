@@ -10,22 +10,20 @@ import logging
 import os
 import sys
 
-import numpy as np
 import pandas as pd
-import scipy.stats
 
 import settings
-from utilities import read_data
+from processing.utilities import read_data, severity_from_hazard_and_risk_scores
 
 
 def mofunc_viirs(row):
-    if row["Severity"] > 0.8 or row["Hazard_Score"] > 80:
+    if row["Severity"] >= 0.8 or row["Hazard_Score"] >= 80:
         return "Warning"
-    elif 0.6 < row["Severity"] < 0.80 or 60 < row["Hazard_Score"] < 80:
+    elif row["Severity"] >= 0.6 or row["Hazard_Score"] >= 60:
         return "Watch"
-    elif 0.35 < row["Severity"] < 0.6 or 35 < row["Hazard_Score"] < 60:
+    elif row["Severity"] >= 0.35 or row["Hazard_Score"] >= 35:
         return "Advisory"
-    elif 0 < row["Severity"] < 0.35 or 0 < row["Hazard_Score"] < 35:
+    elif row["Severity"] > 0 or row["Hazard_Score"] > 0:
         return "Information"
 
 
@@ -36,13 +34,13 @@ def update_VIIRS_MoM(adate):
     DFO_MOMOutput = "Final_Attributes_{}{}MOM+DFOUpdated.csv".format(adate, hh)
     DFO_MOMOutput = os.path.join(settings.DFO_MOM_DIR, DFO_MOMOutput)
     if not os.path.exists(DFO_MOMOutput):
-        print("no file: ", DFO_MOMOutput)
+        logging.info(f"DFO MoM not available yet: {DFO_MOMOutput}")
         return
 
     VIIRS_summary_csv = "VIIRS_Flood_{}.csv".format(adate)
     VIIRS_summary_csv = os.path.join(settings.VIIRS_SUM_DIR, VIIRS_summary_csv)
     if not os.path.exists(VIIRS_summary_csv):
-        print("no file:", VIIRS_summary_csv)
+        logging.info(f"VIIRS summary not available yet: {VIIRS_summary_csv}")
         return
 
     # output files
@@ -57,8 +55,14 @@ def update_VIIRS_MoM(adate):
 
     # already processed
     if os.path.exists(Final_Attributes_csv) and os.path.exists(Attributes_Clean_csv):
-        print("already processed: ", adate)
+        logging.info(f"VIIRS MoM already processed: {adate}")
         return
+
+    logging.info(
+        f"VIIRS MoM inputs for {adate}: "
+        f"dfo_mom={os.path.basename(DFO_MOMOutput)}, "
+        f"viirs={os.path.basename(VIIRS_summary_csv)}"
+    )
 
     weightage = read_data(os.path.join(settings.BASE_DATA_DIR, "VIIRS_Weightage.csv"))
     Attributes = read_data(os.path.join(settings.BASE_DATA_DIR, "Attributes.csv"))
@@ -89,61 +93,61 @@ def update_VIIRS_MoM(adate):
                     row.append(x)
                 row_count = row_count + 1
             else:
-                if float(row[1]) / float(weightage.VIIRS_Area_wt) > float(
-                    weightage.VIIRS_Area_max_pt
+                if float(row[1]) / float(weightage.VIIRS_Area_wt[0]) > float(
+                    weightage.VIIRS_Area_max_pt[0]
                 ):
                     VIIRS_area_1day_score = str(
-                        float(weightage.VIIRS_Area_max_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.VIIRS_Area_max_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     VIIRS_area_1day_score = str(
-                        float(weightage.VIIRS_Area_Min_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.VIIRS_Area_Min_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[1])
-                        / float(weightage.VIIRS_Area_wt)
+                        / float(weightage.VIIRS_Area_wt[0])
                     )
-                if float(row[2]) / float(weightage.VIIRS_percArea_wt) > float(
-                    weightage.VIIRS_percArea_Maxpt
+                if float(row[2]) / float(weightage.VIIRS_percArea_wt[0]) > float(
+                    weightage.VIIRS_percArea_Maxpt[0]
                 ):
                     VIIRS_perc_area_1day_score = str(
-                        float(weightage.VIIRS_percArea_Maxpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.VIIRS_percArea_Maxpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     VIIRS_perc_area_1day_score = str(
-                        float(weightage.VIIRS_percArea_Minpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.VIIRS_percArea_Minpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[2])
-                        / float(weightage.VIIRS_percArea_wt)
+                        / float(weightage.VIIRS_percArea_wt[0])
                     )
-                if float(row[3]) / float(weightage.VIIRS_Area_wt) > float(
-                    weightage.VIIRS_Area_max_pt
+                if float(row[3]) / float(weightage.VIIRS_Area_wt[0]) > float(
+                    weightage.VIIRS_Area_max_pt[0]
                 ):
                     VIIRS_area_5day_score = str(
-                        float(weightage.VIIRS_Area_max_pt)
-                        * float(weightage.five_Day_Multiplier)
+                        float(weightage.VIIRS_Area_max_pt[0])
+                        * float(weightage.five_Day_Multiplier[0])
                     )
                 else:
                     VIIRS_area_5day_score = str(
-                        float(weightage.VIIRS_Area_Min_pt)
-                        * float(weightage.five_Day_Multiplier)
+                        float(weightage.VIIRS_Area_Min_pt[0])
+                        * float(weightage.five_Day_Multiplier[0])
                         * float(row[3])
-                        / float(weightage.VIIRS_Area_wt)
+                        / float(weightage.VIIRS_Area_wt[0])
                     )
-                if float(row[4]) / float(weightage.VIIRS_percArea_wt) > float(
-                    weightage.VIIRS_percArea_Maxpt
+                if float(row[4]) / float(weightage.VIIRS_percArea_wt[0]) > float(
+                    weightage.VIIRS_percArea_Maxpt[0]
                 ):
                     VIIRS_perc_area_5day_score = str(
-                        float(weightage.VIIRS_percArea_Maxpt)
-                        * float(weightage.five_Day_Multiplier)
+                        float(weightage.VIIRS_percArea_Maxpt[0])
+                        * float(weightage.five_Day_Multiplier[0])
                     )
                 else:
                     VIIRS_perc_area_5day_score = str(
-                        float(weightage.VIIRS_percArea_Minpt)
-                        * float(weightage.five_Day_Multiplier)
+                        float(weightage.VIIRS_percArea_Minpt[0])
+                        * float(weightage.five_Day_Multiplier[0])
                         * float(row[4])
-                        / float(weightage.VIIRS_percArea_wt)
+                        / float(weightage.VIIRS_percArea_wt[0])
                     )
                 Sum_Score = str(
                     (
@@ -190,7 +194,7 @@ def update_VIIRS_MoM(adate):
         Attributes,
         PDC_resilience[["ISO", "Resilience_Index", " NormalizedLackofResilience "]],
         on="ISO",
-        how="inner",
+        how="left",
     )
     Final_Output = pd.merge(
         join1.set_index("pfaf_id"), Final_Output_0, on="pfaf_id", how="right"
@@ -202,7 +206,9 @@ def update_VIIRS_MoM(adate):
     Final_Output["Hazard_Score"] = Final_Output[
         ["Hazard_Score", "VIIRSTotal_Score"]
     ].max(axis=1)
-    Final_Output = Final_Output[Final_Output.Hazard_Score != 0]
+    # Kept: dropping these also lost the GloFAS/GFMS columns of watersheds
+    # a later source keeps. Culled once, at the end of final_alert_pdc.
+    # Final_Output = Final_Output[Final_Output.Hazard_Score != 0]
     Final_Output.drop(
         Final_Output.index[
             (Final_Output["rfr_score"] == 0) & (Final_Output["cfr_score"] == 0)
@@ -215,18 +221,18 @@ def update_VIIRS_MoM(adate):
     Final_Output = Final_Output.assign(
         Scaled_Coastal_Risk=lambda x: Final_Output["cfr_score"] * 20
     )
-    Final_Output = Final_Output.assign(
-        Severity=lambda x: scipy.stats.norm(
-            np.log(
-                100
-                - Final_Output[["Scaled_Riverine_Risk", "Scaled_Coastal_Risk"]].max(
-                    axis=1
-                )
-            ),
-            1,
-        ).cdf(np.log(Final_Output["Hazard_Score"]))
-    )
+    
+    ################# TypeError: loop of ufunc does not support argument 0 of type float which has no callable log method
+    cols = [
+        "Scaled_Riverine_Risk",
+        "Scaled_Coastal_Risk",
+        "Hazard_Score",
+    ]
+    Final_Output[cols] = Final_Output[cols].apply(pd.to_numeric, errors="coerce")
+    
+    Final_Output["Severity"] = severity_from_hazard_and_risk_scores(Final_Output)
     Final_Output["Alert"] = Final_Output.apply(mofunc_viirs, axis=1)
+    Final_Output["Flag"] = Final_Output["Flag"].astype(object)
     Final_Output.loc[Final_Output["Alert"] == "Information", "Flag"] = ""
     Final_Output.loc[Final_Output["Alert"] == "Advisory", "Flag"] = ""
     Final_Output.to_csv(Final_Attributes_csv, encoding="utf-8-sig")
@@ -234,7 +240,7 @@ def update_VIIRS_MoM(adate):
         Attributes,
         PDC_resilience[["ISO", "Resilience_Index", " NormalizedLackofResilience "]],
         on="ISO",
-        how="inner",
+        how="left",
     )
     Attributes_Clean_VIIRS_Updated = pd.merge(
         join1.set_index("pfaf_id"),
@@ -257,7 +263,7 @@ def batchrun_VIIRS_MoM():
         if not ".csv" in item:
             continue
         datestr = item[:-4].split("_")[-1]
-        print("Processing: ", datestr)
+        logging.info(f"VIIRS MoM batch: {datestr}")
         update_VIIRS_MoM(datestr)
 
 

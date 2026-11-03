@@ -1,0 +1,18 @@
+.git
+.github
+__pycache__
+**/__pycache__
+*.pyc
+# generated at run time / not needed in the image
+logs
+logs_old
+nohup.out
+backfill/logs
+backfill/__pycache__
+# mounted, never baked in (credentials)
+production.cfg
+.env
+# initialize.py unzips the shapefile in the container
+data/watershed_shp/Watershed_pfaf_id.shp
+# kept in the repository for reference only, not read by any job
+data/watershed_shp_outdated

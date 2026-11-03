@@ -4,30 +4,28 @@ HWRF_tool.py
 """
 
 import csv
-import json
 import logging
-import math
 import os
 import shutil
 import subprocess
-import sys
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 
-import geopandas as gpd
-import numpy as np
 import pandas as pd
-import rasterio
 import requests
 from bs4 import BeautifulSoup
 from osgeo import gdal
-from rasterio import Affine
-from rasterio.mask import mask
-from shapely.geometry import Point
 
 import settings
-from HWRF_MoM import hwrf_workflow
-from utilities import get_current_processing_datehour, hwrf_today, watersheds_gdb_reader
+from processing.hwrf.HWRF_MoM import hwrf_workflow
+from processing.utilities import (
+    RAIN_SUMMARY_HEADERS,
+    get_current_processing_datehour,
+    hwrf_today,
+    read_data,
+    watersheds_gdb_reader,
+)
+from processing.watershed_cells import raster_summary
 
 
 def check_status(adate):
@@ -51,8 +49,8 @@ def check_hours(adate):
     """check if it is too early to process"""
     # adate in YYYYMMDDHH
 
-    ct = datetime.now()
-    da = datetime.strptime(adate, "%Y%m%d%H")
+    ct = datetime.now(timezone.utc)
+    da = datetime.strptime(adate, "%Y%m%d%H").replace(tzinfo=timezone.utc)
     delta = ct - da
     dhours = delta.total_seconds() / 3600.0
     if dhours > settings.HWRF_TIME_DELAY:
@@ -66,20 +64,19 @@ def generate_procesing_list():
 
     hosturl = settings.config.get("hwrf", "HOST")
 
-    # Check if the host URL is accessible
-    from utilities import url_exits
-
-    if not url_exits(hosturl):
-        logging.info(f"Host URL {hosturl} is not accessible")
-        return {}  # Return an empty dictionary if URL isn't reachable
-
     try:
-        reqs = requests.get(hosturl)
+        # one request both checks the host and lists the dates
+        reqs = requests.get(hosturl, timeout=60)
+        if reqs.status_code != 200:
+            logging.info(f"Host URL {hosturl} is not accessible")
+            return {}  # Return an empty dictionary if URL isn't reachable
         soup = BeautifulSoup(reqs.text, "html.parser")
 
         datelist = {}
         for link in soup.find_all("a"):
             fstr = link.string
+            if not fstr:
+                continue
             if fstr[:5] == "hwrf.":
                 a_entry = fstr.split(".")[1]
                 a_entry = a_entry.replace("/", "")
@@ -96,6 +93,8 @@ def generate_procesing_list():
             soup = BeautifulSoup(reqs.text, "html.parser")
             for link in soup.find_all("a"):
                 fstr = link.string
+                if not fstr:
+                    continue
                 hhstr = fstr.replace("/", "")
                 if hhstr in ["00", "06", "12", "18"]:
                     a_entry = key + hhstr
@@ -104,6 +103,7 @@ def generate_procesing_list():
                     # check if it is too early to process the data
                     if check_hours(a_entry):
                         continue
+                    dataurllist[a_entry] = hosturl + fstr
 
         return dataurllist
 
@@ -123,13 +123,15 @@ def HWRF_download(hwrfurl):
         if "rainfall.ascii" in fstr:
             fstr_local = os.path.join(settings.HWRF_PROC_DIR, fstr)
             if not os.path.exists(fstr_local):
-                wgetcmd = (
-                    "wget "
-                    + os.path.join(hwrfurl, fstr)
-                    + " -P "
-                    + settings.HWRF_PROC_DIR
-                )
-                subprocess.call(wgetcmd, shell=True)
+                subprocess.run(
+                    [
+                        "wget",
+                        f"{hwrfurl.rstrip('/')}/{fstr}",
+                        "-P",
+                        settings.HWRF_PROC_DIR,
+                    ],
+                    check=True,
+                )  # Raises CalledProcessError on non-zero exit
             ascii_list.append(fstr)
 
     return ascii_list
@@ -166,7 +168,7 @@ def process_rain(adate, TC_Rain):
                     row_count = row_count + 1
         df = (
             pd.read_table(
-                i, skiprows=1, delim_whitespace=True, names=("lat", "lon", "Z")
+                i, skiprows=1, sep=r"\s+", names=("lat", "lon", "Z")
             )
         ).fillna(-999)
         df.sort_values(by=["lat", "lon"], ascending=[False, True])
@@ -206,7 +208,7 @@ def process_rain(adate, TC_Rain):
     filename = "hwrf." + adate + "rainfall.vrt"
     raintiff = filename.replace(".vrt", ".tiff")
     vrt = gdal.BuildVRT(filename, TC_Rain_tiff)
-    gdal.Translate(raintiff, vrt)
+    gdal.Translate(raintiff, vrt, creationOptions=["COMPRESS=LZW", "TILED=YES"])
     vrt = None
 
     # no need
@@ -228,52 +230,14 @@ def process_rain(adate, TC_Rain):
     return raintiff
 
 
-def HWRF_extract_by_mask(mask_json, tiff):
-    """extract by each watershed"""
-
-    with rasterio.open(tiff) as src:
-        try:
-            out_image, out_transform = mask(
-                src, [mask_json["features"][0]["geometry"]], crop=True
-            )
-        except ValueError as e:
-            #'Input shapes do not overlap raster.'
-            # print(e)
-            src = None
-            # return empty dataframe
-            return pd.DataFrame()
-
-    # extract data
-    no_data = src.nodata
-    # extract the values of the masked array
-    # print(out_image)
-    data = out_image[0]
-    # extract the row, columns of the valid values
-    row, col = np.where(data != no_data)
-    point_value = np.extract(data != no_data, data)
-    if len(point_value) == 0:
-        src = None
-        # return empty dataframe
-        return pd.DataFrame()
-
-    T1 = out_transform * Affine.translation(0.5, 0.5)  # reference the pixel centre
-    rc2xy = lambda r, c: T1 * (c, r)
-    px, py = src.res
-    # print (px,py)
-    pixel_area_km2 = (
-        lambda lon, lat: 111.111 * 111.111 * math.cos(lat * 0.01745) * px * py
-    )
-    d = gpd.GeoDataFrame({"col": col, "row": row, "intensity": point_value})
-    # coordinate transformation
-    d["lon"] = d.apply(lambda row: rc2xy(row.row, row.col)[0], axis=1)
-    d["lat"] = d.apply(lambda row: rc2xy(row.row, row.col)[1], axis=1)
-    d["area"] = d.apply(lambda row: pixel_area_km2(row.lon, row.lat), axis=1)
-
-    # geometry
-    d["geometry"] = d.apply(lambda row: Point(row["lon"], row["lat"]), axis=1)
-    # first 2 points
-    src = None
-    return d
+def rain_summary_rows(summary):
+    """RAIN_SUMMARY_HEADERS rows of a watershed_cells summary (HWRF, HAFS):
+    the watersheds with rain only"""
+    rain = summary[summary["has_data"]]
+    return [
+        [pfaf_id, row["area"], row["perc_area"], row["mean"], row["max"]]
+        for pfaf_id, row in rain.iterrows()
+    ]
 
 
 def HWRF_extract_by_watershed(raintiff):
@@ -281,57 +245,32 @@ def HWRF_extract_by_watershed(raintiff):
 
     ## zonal analysis using merged tiff and watersheds
     watersheds = watersheds_gdb_reader()
-    pfafid_list = watersheds.index.tolist()
 
-    headers_list = [
-        "pfaf_id",
-        "Rain_TotalArea_km",
-        "perc_Area",
-        "MeanRain",
-        "MaxRain",
-    ]
     output_csv = raintiff.replace(".tiff", ".csv")
+    # rain area (exact cell shares), mean and max per watershed
+    # (watershed_cells.py)
+    HWRF_weightage = read_data(os.path.join(settings.BASE_DATA_DIR, "HWRF_Weightage.csv"))
+    # rain area: only the cells above a quarter of the mean rain minimum
+    value_above = float(HWRF_weightage.HWRF_MeanRain_minwt[0]) / 4
+    rows = rain_summary_rows(
+        raster_summary("hwrf", raintiff, watersheds, value_above=value_above)
+    )
     with open(output_csv, "w") as f:
         writer = csv.writer(f)
-        writer.writerow(headers_list)
-    has_data = False
-    with open(output_csv, "a") as f:
-        writer = csv.writer(f)
-        for the_pfafid in pfafid_list:
-            test_json = json.loads(
-                gpd.GeoSeries([watersheds.loc[the_pfafid, "geometry"]]).to_json()
-            )
-            if test_json["features"][0]["geometry"] == None:
-                continue
-            data_points = HWRF_extract_by_mask(test_json, raintiff)
-            # write summary to a csv file
-            if not data_points.empty:
-                HWRF_TotalArea_km = data_points["area"].sum()
-                HWRF_perc_Area = (
-                    HWRF_TotalArea_km / watersheds.loc[the_pfafid]["area_km2"] * 100
-                )
-                HWRF_MeanRain = data_points["intensity"].mean()
-                HWRF_MaxRain = data_points["intensity"].max()
-                results_list = [
-                    the_pfafid,
-                    HWRF_TotalArea_km,
-                    HWRF_perc_Area,
-                    HWRF_MeanRain,
-                    HWRF_MaxRain,
-                ]
-                writer.writerow(results_list)
-                has_data = True
+        writer.writerow(RAIN_SUMMARY_HEADERS)
+        writer.writerows(rows)
+    has_data = len(rows) > 0
     # has_data, move file to the right locaition
-    # no_data, delete all the file
+    # no_data: keep the header-only summary (processed, no rain over any
+    # watershed; a missing summary means not processed yet), delete the image
+    shutil.move(output_csv, os.path.join(settings.HWRF_SUM_DIR, output_csv))
     if has_data:
-        shutil.move(output_csv, os.path.join(settings.HWRF_SUM_DIR, output_csv))
         shutil.move(raintiff, os.path.join(settings.HWRF_IMG_DIR, raintiff))
         os.remove(raintiff.replace(".tiff", ".vrt"))
     else:
         os.remove(raintiff)
-        os.remove(output_csv)
         os.remove(raintiff.replace(".tiff", ".vrt"))
-        logging.info("no data: " + output_csv)
+        logging.info(f"no data, empty summary: {output_csv}")
 
     return [output_csv, has_data]
 
@@ -341,6 +280,7 @@ def HWRF_cron():
 
     # get date list
     datelist = generate_procesing_list()
+    print(datelist)
     # for debug
     # print(datelist)
     # sys.exit()
@@ -351,9 +291,10 @@ def HWRF_cron():
         curdatestr = get_current_processing_datehour(
             time_delay=settings.HWRF_TIME_DELAY
         )
+        print(curdatestr)
         # check if there is the hwrf data for this hour
         if not hwrf_today(adate=curdatestr[:8], ahour=curdatestr[-2:]):
-            logging.info("no HRWRF data, run " + curdatestr)
+            logging.info(f"no HRWRF data, run {curdatestr}")
             hwrf_workflow(curdatestr)
 
         return
@@ -363,20 +304,20 @@ def HWRF_cron():
 
     # download - process ascii
     for key in datelist:
-        logging.info("check: " + key)
+        logging.info(f"check: {key}")
         a_list = HWRF_download(datelist[key])
         if len(a_list) == 0:
-            logging.info("no rainfall data " + key)
+            logging.info(f"no rainfall data {key}")
             continue
-        logging.info("processing " + key)
+        logging.info(f"processing {key}")
         newtiff = process_rain(key, a_list)
-        logging.info("processing " + newtiff)
+        logging.info(f"processing {newtiff}")
         [hwrfcsv, dataflag] = HWRF_extract_by_watershed(newtiff)
         if not dataflag:
-            logging.info("no data, not generated: " + hwrfcsv)
+            logging.info(f"no rain over watersheds, empty summary: {hwrfcsv}")
             # if no csv produced, it shall just conitune to produce MoM output
             # continue
-        logging.info("generated: " + hwrfcsv)
+        logging.info(f"generated: {hwrfcsv}")
 
         # run MoM update
         testdate = key

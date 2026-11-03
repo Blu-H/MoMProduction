@@ -1,0 +1,332 @@
+================================================================================
+CHANGES SUMMARY: Original Repo (Global-Flood-Assessment/MoMProduction main)
+================================================================================
+
+12 Python files changed:
+  DFO_MoM.py, DFO_tool.py, DFO_tool_fix.py, GFMS_MoM.py, GFMS_tool.py,
+  HWRF_MoM.py, HWRF_tool.py, MoM_run.py, VIIRS_tool.py,
+  initialize.py, settings.py, utilities.py
+
+Changes are grouped by type. Within each section, IMPORTANT behavioral
+differences (changes in what actually runs and when) are marked with [!].
+
+================================================================================
+1. WINDOWS / CROSS-PLATFORM COMPATIBILITY
+================================================================================
+
+--- MoM_run.py ---
+  [!] Added early GDAL PATH injection at startup:
+        from osgeo import gdal
+        if os.name == "nt":
+            os.environ["PATH"] = first_setup/ + os.environ["PATH"]
+      This ensures GDAL console tools (gdal_translate, gdalbuildvrt, etc.) are
+      accessible in os.system() and subprocess calls even in modules that don't
+      import the Python GDAL bindings. Without this, those commands silently
+      fail on Windows .venv.
+  [!] Added sys.path.insert(0, first_setup/) so Windows pre-built wheels
+      (gdal, pyproj .whl files in first_setup/) are found at import time.
+  [!] Removed "from settings import *" — settings variables are no longer
+      injected into MoM_run.py's namespace. This has no functional impact
+      because MoM_run.py never used any settings variables directly.
+
+--- settings.py ---
+  [!] WATERSHED_DIR path changed:
+        BEFORE: os.path.join(BASE_DIR, "watershed_shp")
+        AFTER:  os.path.join(BASE_DIR, "data", "watershed_shp")
+      The shapefiles are now expected one directory deeper, inside data/.
+      The local repo has the shapefiles at data/watershed_shp/. If running
+      from the original repo layout (watershed_shp/ at root), this will fail.
+  WORKING_DIR and PRODUCT_DIR now call .replace("/", os.sep) on the config
+      value — ensures forward-slash paths in production.cfg work on Windows.
+
+--- DFO_tool.py ---
+  [!] wget call changed from shell string to argument list:
+        BEFORE: subprocess.call("wget ... -P dir", shell=True)
+        AFTER:  subprocess.run(["wget", ..., "-P", dir], check=True)
+      shell=True was needed on Windows to find wget on PATH; now wget is
+      bundled in first_setup/ and PATH is injected at startup (see MoM_run.py).
+      check=True raises CalledProcessError on failure instead of silently
+      continuing.
+  [!] Shell "zip -r -0 archive.zip ./*" replaced with Python zipfile.ZipFile.
+      Same archive contents, cross-platform.
+  [!] Shell "gdalbuildvrt file.vrt folder/*.tiff" replaced with
+      gdal.BuildVRT(vrt, tiff_list) Python API. Same result, cross-platform,
+      and no shell glob expansion (tiff_list is explicitly built).
+  All URL construction changed from os.path.join(baseurl, ...) to f-strings
+      with .rstrip('/') — prevents Windows backslashes appearing in URLs.
+
+--- HWRF_tool.py ---
+  [!] wget call changed from shell string to argument list (same as DFO_tool
+      above). check=True raises CalledProcessError on non-zero exit.
+
+--- GFMS_tool.py ---
+  [!] Shell "zip gfms_{date}.zip Flood_byStor_{date}*.*" replaced with
+      Python zipfile.ZipFile. Same archive contents, cross-platform.
+  All URL construction changed from os.path.join() to f-strings with
+      .rstrip('/') — prevents Windows backslashes in URLs.
+
+--- VIIRS_tool.py ---
+  [!] build_tiff(): intermediate .tif part-files are no longer written to disk.
+      They are now buffered in GDAL virtual memory (/vsimem/filename) and
+      fed directly to BuildVRT or Warp. This avoids writing ~136 x 2 files
+      per run to disk.
+  [!] Windows-specific path in build_tiff(): gdal.Warp() is used instead of
+      BuildVRT + Translate because gdal.BuildVRT on Windows does not correctly
+      read /vsimem/ memory buffers.
+  [!] Shell "zip archive.zip RIVER*.tif" replaced with Python zipfile.ZipFile
+      opened in append mode ("a") so 1-day and 5-day products go into the
+      same archive across loop iterations.
+
+
+================================================================================
+2. PANDAS / GEOPANDAS API COMPATIBILITY (Python/library version upgrade)
+================================================================================
+
+--- DFO_MoM.py, HWRF_MoM.py, GFMS_MoM.py, GFMS_tool.py ---
+  [!] Every instance of:
+        float(weightage.ColumnName)
+        float(HWRF_weightage.ColumnName)
+      changed to:
+        float(weightage.ColumnName[0])
+        float(HWRF_weightage.ColumnName[0])
+      REASON: read_data() returns a DataFrame. Accessing a column by name
+      returns a pandas Series. In older pandas, float(series) worked when the
+      series had one row; in newer pandas (2.x) this raises TypeError. Adding
+      [0] explicitly takes the scalar from the first row.
+      NUMERICAL RESULT: identical — the weightage CSVs all have exactly one
+      data row.
+
+--- GFMS_MoM.py, GFMS_tool.py ---
+  [!] Chained indexing assignment replaced with .loc[]:
+        BEFORE: df["col"][(df["other"] == 0)] = value
+        AFTER:  df.loc[df["other"] == 0, "col"] = value
+      REASON: Chained indexing on a DataFrame copy raises SettingWithCopyWarning
+      and in newer pandas silently does nothing (the assignment is lost).
+      .loc[] is the correct method and guarantees the assignment takes effect.
+      FUNCTIONAL RESULT: identical when it worked; new code is guaranteed
+      correct on all pandas versions.
+
+--- GFMS_tool.py ---
+  [!] fixed_data.append(dyn_data) replaced with pd.concat([fixed_data, dyn_data])
+      REASON: DataFrame.append() was removed in pandas 2.0.
+
+  [!] geopandas.sjoin(..., op="within") changed to predicate="within"
+      REASON: op= parameter was deprecated and removed in newer geopandas.
+
+--- utilities.py ---
+  [!] read_data() return type annotation added: -> pd.DataFrame
+      No runtime effect.
+
+
+================================================================================
+3. UTC TIMEZONE AWARENESS
+================================================================================
+
+Files affected: settings.py, utilities.py, GFMS_tool.py, HWRF_tool.py,
+                DFO_tool.py, VIIRS_tool.py
+
+  All date.today() and datetime.now() (naive/local time) replaced with
+  datetime.now(timezone.utc) (UTC-aware).
+
+  REASON: Python 3.12 deprecates naive datetime comparisons with aware
+  datetimes. For a global flood monitoring system, UTC is the correct timezone.
+
+  FUNCTIONAL IMPACT: None in practice. All dates are immediately converted to
+  strings via strftime() or used as integer day-deltas. The numeric values
+  are the same regardless of timezone when run on a UTC or near-UTC machine
+  (as CI/production servers typically are). On a machine with a large UTC
+  offset (e.g. UTC+10), naive date.today() could theoretically differ from
+  UTC date by one day; the new code is correct in that edge case.
+
+  Specific instances:
+    - settings.py:     date.today()         -> datetime.now(timezone.utc)
+                       (used only for log filename — year/month)
+    - utilities.py:    from_today(): today  -> datetime.now(timezone.utc)
+                       hwrf_today(): today  -> datetime.now(timezone.utc)
+                       get_current_processing_datehour(): datetime.now()
+                                            -> datetime.now(timezone.utc)
+    - GFMS_tool.py:    date.today()         -> datetime.now(timezone.utc)
+    - HWRF_tool.py:    datetime.now()       -> datetime.now(timezone.utc)
+    - DFO_tool.py:     date.today()         -> datetime.now(timezone.utc)
+    - VIIRS_tool.py:   datetime.datetime.today() -> datetime.now(timezone.utc)
+
+
+================================================================================
+4. IMPORTANT BEHAVIORAL CHANGES (logic/flow differences)
+================================================================================
+
+--- VIIRS_tool.py: update_VIIRS_MoM() call moved out of VIIRS_run_adate() ---
+
+  [!] UPSTREAM: VIIRS_run_adate(adate) called update_VIIRS_MoM(adate) and
+      os.chdir(settings.BASE_DIR) at the end of every invocation.
+
+  [!] NEW: update_VIIRS_MoM(adate) and os.chdir(settings.BASE_DIR) have been
+      REMOVED from VIIRS_run_adate(). They are now called only from
+      VIIRS_cron(), explicitly, after all dates are processed.
+
+  CONSEQUENCE 1 — direct callers of VIIRS_run_adate():
+      Any code that calls VIIRS_run_adate() directly (tests, scripts, manual
+      runs, or batchrun_VIIRS_MoM() if it were to use it) will NO LONGER
+      trigger update_VIIRS_MoM(). The MoM update step will be silently skipped.
+      The working directory will also not be reset after the call.
+
+--- VIIRS_tool.py: VIIRS_cron() fixdate path now explicitly calls
+    update_VIIRS_MoM() ---
+
+  UPSTREAM: when called with adate="some_date" (fixdate mode), VIIRS_cron()
+      called VIIRS_run_adate(adate), which internally called
+      update_VIIRS_MoM(adate). Net result: MoM was updated.
+
+  NEW: VIIRS_cron() calls VIIRS_run_adate(adate) then update_VIIRS_MoM(adate)
+      explicitly. Net result: MoM is still updated.
+  No functional difference for the fixdate path.
+
+--- GFMS_tool.py: GloFAS download behavior changed ---
+
+  [!] UPSTREAM: GloFAS_download() skipped downloading a file if it already
+      existed locally (if os.path.exists(save_txt): continue). Only newly
+      downloaded files were added to the job_list for processing.
+
+  [!] NEW: GloFAS_download() always downloads all files from the FTP server,
+      overwriting existing local copies. All dates with a "threspoints_"
+      file on the server are added to the job_list.
+      However, GloFAS_process() now checks whether the output files (csv +
+      geojson) already exist and skips processing if they do.
+
+  NET EFFECT: Raw FTP files are always re-downloaded (no local cache benefit).
+      Processing is skipped if outputs already exist. This is more robust
+      (fresh data always fetched) but uses more bandwidth.
+
+--- GFMS_tool.py: GFMS download no longer calls sys.exit() on failure ---
+
+  [!] UPSTREAM: If a GFMS .bin file HTTP download failed, the script called
+      sys.exit(), killing the entire pipeline.
+
+  [!] NEW: On failure, GFMS_download() returns None. GFMS_data_extractor()
+      checks for None and prints a warning, then returns without processing.
+      The pipeline continues to the next file.
+
+  CONSEQUENCE: A single missing or unavailable .bin file no longer aborts the
+      entire run. The rest of the day's files are still processed.
+
+--- GFMS_tool.py: VIIRS_tool.py: GloFAS credentials / DFO token env var fallback ---
+
+  [!] GloFAS credentials: if config value contains "???", the code falls back
+      to environment variables AUTH_GLOFAS_USER and AUTH_GLOFAS_PASSWD.
+  [!] DFO token: if config value contains "???", falls back to AUTH_DFO_TOKEN.
+      This enables Docker/CI deployments where credentials are injected as
+      environment variables rather than written to production.cfg.
+
+--- initialize.py: no longer exits when production.cfg is missing ---
+
+  [!] UPSTREAM: if production.cfg did not exist, the script created it from
+      the sample, printed a message, and called sys.exit() immediately.
+      The user had to edit the file and re-run.
+
+  [!] NEW: sys.exit() replaced with time.sleep(1). The script does not abort
+      and continues executing with the freshly-copied default config. If the
+      config has placeholder credentials, the credential checks later in the
+      script will still catch them and sys.exit() there.
+
+--- initialize.py: directory creation and shp unzip now happen before
+    credential validation ---
+
+  [!] UPSTREAM order: check credentials -> sys.exit() if missing -> unzip shp
+  [!] NEW order:      create all dirs -> unzip shp -> check credentials ->
+                      sys.exit() if missing
+
+  CONSEQUENCE: All directories and the watershed shapefile are created/unzipped
+      even if credentials are missing. On first setup with a blank config,
+      the user gets a complete directory structure before being told to fill
+      in credentials.
+
+--- DFO_tool.py: os.makedirs added before processing ---
+
+  [!] Added os.makedirs(hdffolder, exist_ok=True) before entering the HDF
+      processing folder. Previously, if the download step created a file
+      instead of a folder (e.g. due to a partial download), or the folder
+      simply didn't exist yet, the os.chdir() would fail with FileNotFoundError.
+
+
+================================================================================
+5. WILDCARD IMPORT REPLACEMENT (from settings import * -> import settings)
+================================================================================
+
+Files affected: DFO_tool.py, GFMS_tool.py, initialize.py, MoM_run.py
+
+  "from settings import *" replaced with "import settings" in all four files.
+  All references to settings variables (WORKING_DIR, DFO_PROC_DIR, config,
+  BASE_DIR, etc.) are now explicitly prefixed with "settings.".
+
+  FUNCTIONAL IMPACT: None. The values are identical. This change eliminates
+  namespace pollution and makes it explicit where each variable comes from.
+
+
+================================================================================
+6. CODE QUALITY / MINOR IMPROVEMENTS
+================================================================================
+
+--- GFMS_tool.py ---
+  GFMS_extract_by_mask(): coordinate transform and area calculation rewritten
+      from row-wise lambda apply() to vectorized numpy operations:
+        BEFORE: d.apply(lambda row: T1 * (row.col, row.row), axis=1)  [slow]
+        AFTER:  lons, lats = T1 * (col, row)                          [fast]
+        BEFORE: d.apply(lambda row: 111.111*111.111*cos(lat*0.01745)*px*py)
+        AFTER:  areas = 111.111 * 111.111 * np.cos(lats*(pi/180))*px*py
+      Also: angle conversion corrected from 0.01745 (approx) to
+      math.pi/180 (exact). The difference is ~0.0003% — negligible.
+      BEFORE used from shapely.geometry import Point to build geometry column;
+      AFTER uses geopandas.points_from_xy() directly. Same result.
+
+  Dead code removed: "print(lastest_csv)" line after a "return" statement.
+
+--- GFMS_MoM.py ---
+  CSV row values unpacked into named variables (GFMS_TotalArea_km,
+  GFMS_perc_Area, etc.) instead of accessed by index (row[1], row[2], etc.).
+  Readability only — identical values.
+
+--- utilities.py ---
+  hwrf_today(): URL construction changed from os.path.join(hosturl, ...) to
+      f"{hosturl.rstrip('/')}/{hstr}" — prevents backslash on Windows.
+  read_data() got -> pd.DataFrame return type annotation. No runtime effect.
+
+--- VIIRS_tool.py ---
+  logging.waring("error:" + str(e))  (typo)
+  -> logging.warning(f"error: {e}")  (fixed, f-string)
+  New helper functions added (currently only used when use_aws=True):
+    list_tif_files(): queries AWS S3 ListObjectsV2 for .tif files in a prefix
+    pop_matching_string_from_list(): finds and removes a URL from a list
+
+  Parallel processing Pool code moved into a raw string literal r"""..."""
+  (effectively commented out), preserved as documentation of a future option.
+
+--- initialize.py ---
+  Typo fixed: "crete " -> "create " in the directory creation print message.
+
+--- DFO_MoM.py, HWRF_MoM.py, VIIRS_tool.py ---
+  Docstring indentation cleaned up (cosmetic only).
+
+
+================================================================================
+7. NEW FILES (not in upstream)
+================================================================================
+
+  first_setup/               Pre-built Windows wheels and setup scripts:
+    gdal-3.11.4-cp312-cp312-win_amd64.whl
+    pyproj-3.7.2-cp312-cp312-win_amd64.whl
+    setup.ps1 / setup.sh
+    uv-installer.ps1
+    wget.exe                  Bundled wget binary for Windows
+
+  pyproject.toml             Package build configuration (replaces/supplements
+                             environment.yml for pip-based installs)
+  environment.yml            (present in fork, may differ from upstream)
+  Dockerfile                 Container build definition
+  .github/workflows/         CI/CD workflows (cron_jobs_ubuntu.yml,
+                             pr_check_cross_platform.yml)
+  data/watershed_shp/        Shapefiles moved from root watershed_shp/ into
+                             data/watershed_shp/ (matches new settings.py path)
+
+================================================================================
+END OF CHANGES SUMMARY
+================================================================================

@@ -22,7 +22,7 @@ parent = os.path.dirname(current)
 sys.path.append(parent)
 
 import settings
-from utilities import from_today, hwrf_today
+from processing.utilities import from_today, hwrf_today
 
 monitor_data = ["GLOFAS", "GFMS", "HWRF", "DFO", "VIIRS"]
 monitor_mom = ["GFMS", "HWRF", "DFO", "VIIRS", "FINAL"]
