@@ -1,32 +1,31 @@
 """
-    DFO_MoM.py
-        -- update Mom with DFO
-        -- Read Final_Attributes_yyyymmddhhHWRFUpdated.csv as MOM File and DFO_yyyymmdd.csv as DFO File. 
-        -- Write the output Final_Attributes_yyyymmddhhMOM+DFOUpdated.csv and Attributes_clean_yyyymmddhhMOM+DFOUpdated.csv file. 
+DFO_MoM.py
+    -- update Mom with DFO
+    -- Read Final_Attributes_yyyymmddhhHWRFUpdated.csv as MOM File and DFO_yyyymmdd.csv as DFO File.
+    -- Write the output Final_Attributes_yyyymmddhhMOM+DFOUpdated.csv and Attributes_clean_yyyymmddhhMOM+DFOUpdated.csv file.
 """
 
 import csv
 import logging
 import os
 import sys
+from datetime import datetime, timezone
 
-import numpy as np
 import pandas as pd
-import scipy.stats
 
 import settings
-from HWRF_MoM import hwrf_workflow
-from utilities import read_data
+from processing.hwrf.HWRF_MoM import hwrf_workflow
+from processing.utilities import read_data, severity_from_hazard_and_risk_scores
 
 
 def mofunc_dfo(row):
-    if row["Severity"] > 0.8 or row["Hazard_Score"] > 80:
+    if row["Severity"] >= 0.8 or row["Hazard_Score"] >= 80:
         return "Warning"
-    elif 0.6 < row["Severity"] < 0.80 or 60 < row["Hazard_Score"] < 80:
+    elif row["Severity"] >= 0.6 or row["Hazard_Score"] >= 60:
         return "Watch"
-    elif 0.35 < row["Severity"] < 0.6 or 35 < row["Hazard_Score"] < 60:
+    elif row["Severity"] >= 0.35 or row["Hazard_Score"] >= 35:
         return "Advisory"
-    elif 0 < row["Severity"] < 0.35 or 0 < row["Hazard_Score"] < 35:
+    elif row["Severity"] > 0 or row["Hazard_Score"] > 0:
         return "Information"
 
 
@@ -37,7 +36,7 @@ def update_DFO_MoM(adate):
     # not need to run the other part of code if no summary
     DFOsummary = os.path.join(settings.DFO_SUM_DIR, "DFO_{}.csv".format(adate))
     if not os.path.exists(DFOsummary):
-        logging.info(DFOsummary + " is not generated yet!")
+        logging.info(f"{DFOsummary} is not generated yet!")
         return
 
     hh = 18
@@ -54,21 +53,39 @@ def update_DFO_MoM(adate):
 
     # already processed
     if os.path.exists(Final_Attributes_csv) and os.path.exists(Attributes_Clean_csv):
-        print("already processed: ", adate)
+        logging.info(f"DFO MoM already processed: {adate}")
         return
 
     # check MOMOutput
     hhs = ["00", "06", "12", "18"]
+    now_datehour = datetime.now(timezone.utc).strftime("%Y%m%d%H")
     for hh0 in hhs:
+        # skip cycles that have not happened yet. hhs is in ascending order, so
+        # once one cycle is in the future every later one is too, and the 18Z
+        # output merged below cannot exist either: nothing left to do for now.
+        if adate + hh0 > now_datehour:
+            logging.info(f"cycle not reached yet, stop here: {adate}{hh0}")
+            return
         MOMOutput = os.path.join(
             settings.HWRF_MOM_DIR,
-            "Final_Attributes_{}{}HWRFUpdated.csv".format(adate, hh0),
+            f"Final_Attributes_{adate}{hh0}{settings.HWRF_FILE_TAG}Updated.csv",
         )
         if not os.path.exists(MOMOutput):
-            logging.info("force generate HWRF :" + MOMOutput)
+            logging.info(f"force generate HWRF : {MOMOutput}")
             hwrf_workflow(adate + hh0)
     MOMOutput = os.path.join(
-        settings.HWRF_MOM_DIR, "Final_Attributes_{}{}HWRFUpdated.csv".format(adate, hh)
+        settings.HWRF_MOM_DIR, f"Final_Attributes_{adate}{hh}{settings.HWRF_FILE_TAG}Updated.csv"
+    )
+
+    # the cycle this function merges may not be published yet, whether or not
+    # the force generation above ran
+    if not os.path.exists(MOMOutput):
+        logging.info(f"{MOMOutput} is not generated yet!")
+        return
+
+    logging.info(
+        f"DFO MoM inputs for {adate}: "
+        f"dfo={os.path.basename(DFOsummary)}, mom={os.path.basename(MOMOutput)}"
     )
 
     weightage = read_data(os.path.join(settings.BASE_DATA_DIR, "DFO_Weightage.csv"))
@@ -101,89 +118,89 @@ def update_DFO_MoM(adate):
                     row.append(x)
                 row_count = row_count + 1
             else:
-                if float(row[4]) / float(weightage.DFO_Area_wt) > float(
-                    weightage.DFO_Area_max_pt
+                if float(row[4]) / float(weightage.DFO_Area_wt[0]) > float(
+                    weightage.DFO_Area_max_pt[0]
                 ):
                     DFO_area_1day_score = str(
-                        float(weightage.DFO_Area_max_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_Area_max_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     DFO_area_1day_score = str(
-                        float(weightage.DFO_Area_Min_pt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_Area_Min_pt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[4])
-                        / float(weightage.DFO_Area_wt)
+                        / float(weightage.DFO_Area_wt[0])
                     )
-                if float(row[5]) / float(weightage.DFO_percArea_wt) > float(
-                    weightage.DFO_percArea_Maxpt
+                if float(row[5]) / float(weightage.DFO_percArea_wt[0]) > float(
+                    weightage.DFO_percArea_Maxpt[0]
                 ):
                     DFO_perc_area_1day_score = str(
-                        float(weightage.DFO_percArea_Maxpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_percArea_Maxpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                     )
                 else:
                     DFO_perc_area_1day_score = str(
-                        float(weightage.DFO_percArea_Minpt)
-                        * float(weightage.one_Day_Multiplier)
+                        float(weightage.DFO_percArea_Minpt[0])
+                        * float(weightage.one_Day_Multiplier[0])
                         * float(row[5])
-                        / float(weightage.DFO_percArea_wt)
+                        / float(weightage.DFO_percArea_wt[0])
                     )
-                if float(row[6]) / float(weightage.DFO_Area_wt) > float(
-                    weightage.DFO_Area_max_pt
+                if float(row[6]) / float(weightage.DFO_Area_wt[0]) > float(
+                    weightage.DFO_Area_max_pt[0]
                 ):
                     DFO_area_2day_score = str(
-                        float(weightage.DFO_Area_max_pt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_Area_max_pt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                     )
                 else:
                     DFO_area_2day_score = str(
-                        float(weightage.DFO_Area_Min_pt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_Area_Min_pt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                         * float(row[6])
-                        / float(weightage.DFO_Area_wt)
+                        / float(weightage.DFO_Area_wt[0])
                     )
-                if float(row[7]) / float(weightage.DFO_percArea_wt) > float(
-                    weightage.DFO_percArea_Maxpt
+                if float(row[7]) / float(weightage.DFO_percArea_wt[0]) > float(
+                    weightage.DFO_percArea_Maxpt[0]
                 ):
                     DFO_perc_area_2day_score = str(
-                        float(weightage.DFO_percArea_Maxpt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_percArea_Maxpt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                     )
                 else:
                     DFO_perc_area_2day_score = str(
-                        float(weightage.DFO_percArea_Minpt)
-                        * float(weightage.two_Day_Multiplier)
+                        float(weightage.DFO_percArea_Minpt[0])
+                        * float(weightage.two_Day_Multiplier[0])
                         * float(row[7])
-                        / float(weightage.DFO_percArea_wt)
+                        / float(weightage.DFO_percArea_wt[0])
                     )
-                if float(row[8]) / float(weightage.DFO_Area_wt) > float(
-                    weightage.DFO_Area_max_pt
+                if float(row[8]) / float(weightage.DFO_Area_wt[0]) > float(
+                    weightage.DFO_Area_max_pt[0]
                 ):
                     DFO_area_3day_score = str(
-                        float(weightage.DFO_Area_max_pt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_Area_max_pt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                     )
                 else:
                     DFO_area_3day_score = str(
-                        float(weightage.DFO_Area_Min_pt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_Area_Min_pt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                         * float(row[8])
-                        / float(weightage.DFO_Area_wt)
+                        / float(weightage.DFO_Area_wt[0])
                     )
-                if float(row[9]) / float(weightage.DFO_percArea_wt) > float(
-                    weightage.DFO_percArea_Maxpt
+                if float(row[9]) / float(weightage.DFO_percArea_wt[0]) > float(
+                    weightage.DFO_percArea_Maxpt[0]
                 ):
                     DFO_perc_area_3day_score = str(
-                        float(weightage.DFO_percArea_Maxpt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_percArea_Maxpt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                     )
                 else:
                     DFO_perc_area_3day_score = str(
-                        float(weightage.DFO_percArea_Minpt)
-                        * float(weightage.three_Day_Multiplier)
+                        float(weightage.DFO_percArea_Minpt[0])
+                        * float(weightage.three_Day_Multiplier[0])
                         * float(row[9])
-                        / float(weightage.DFO_percArea_wt)
+                        / float(weightage.DFO_percArea_wt[0])
                     )
 
                 Sum_Score = str(
@@ -236,7 +253,7 @@ def update_DFO_MoM(adate):
         Attributes,
         PDC_resilience[["ISO", "Resilience_Index", " NormalizedLackofResilience "]],
         on="ISO",
-        how="inner",
+        how="left",
     )
     Final_Output = pd.merge(
         join1.set_index("pfaf_id"), Final_Output_0, on="pfaf_id", how="outer"
@@ -248,7 +265,9 @@ def update_DFO_MoM(adate):
     Final_Output["Hazard_Score"] = Final_Output[["Hazard_Score", "DFOTotal_Score"]].max(
         axis=1
     )
-    Final_Output = Final_Output[Final_Output.Hazard_Score != 0]
+    # Kept: dropping these also lost the GloFAS/GFMS columns of watersheds
+    # a later source keeps. Culled once, at the end of final_alert_pdc.
+    # Final_Output = Final_Output[Final_Output.Hazard_Score != 0]
     Final_Output.drop(
         Final_Output.index[
             (Final_Output["rfr_score"] == 0) & (Final_Output["cfr_score"] == 0)
@@ -261,18 +280,18 @@ def update_DFO_MoM(adate):
     Final_Output = Final_Output.assign(
         Scaled_Coastal_Risk=lambda x: Final_Output["cfr_score"] * 20
     )
-    Final_Output = Final_Output.assign(
-        Severity=lambda x: scipy.stats.norm(
-            np.log(
-                100
-                - Final_Output[["Scaled_Riverine_Risk", "Scaled_Coastal_Risk"]].max(
-                    axis=1
-                )
-            ),
-            1,
-        ).cdf(np.log(Final_Output["Hazard_Score"]))
-    )
+
+    ################# TypeError: loop of ufunc does not support argument 0 of type float which has no callable log method
+    cols = [
+        "Scaled_Riverine_Risk",
+        "Scaled_Coastal_Risk",
+        "Hazard_Score",
+    ]
+    Final_Output[cols] = Final_Output[cols].apply(pd.to_numeric, errors="coerce")
+    
+    Final_Output["Severity"] = severity_from_hazard_and_risk_scores(Final_Output)
     Final_Output["Alert"] = Final_Output.apply(mofunc_dfo, axis=1)
+    Final_Output["Flag"] = Final_Output["Flag"].astype(object)
     Final_Output.loc[Final_Output["Alert"] == "Information", "Flag"] = ""
     Final_Output.loc[Final_Output["Alert"] == "Advisory", "Flag"] = ""
     Final_Output.to_csv(Final_Attributes_csv, encoding="utf-8-sig")
@@ -281,7 +300,7 @@ def update_DFO_MoM(adate):
         Attributes,
         PDC_resilience[["ISO", "Resilience_Index", " NormalizedLackofResilience "]],
         on="ISO",
-        how="inner",
+        how="left",
     )
     Attributes_Clean_DFO_Updated = pd.merge(
         join1.set_index("pfaf_id"),
@@ -290,7 +309,7 @@ def update_DFO_MoM(adate):
         how="right",
     )
     Attributes_Clean_DFO_Updated.to_csv(Attributes_Clean_csv, encoding="utf-8-sig")
-    logging.info("generated: " + Final_Attributes_csv)
+    logging.info(f"generated: {Final_Attributes_csv}")
 
     os.remove(DFO_w_score_csv)
 
